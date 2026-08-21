@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+
+# Local database
+data/*.db
+data/*.db-shm
+data/*.db-wal
+# GitHub Actions runtime / generated Pages
+runtime/
+docs/*
+!docs/.gitkeep
+stocks-db.zip
