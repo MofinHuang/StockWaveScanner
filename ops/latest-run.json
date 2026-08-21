@@ -1,14 +1,14 @@
 {
   "requested_date": "2026-08-21",
-  "started_at": "2026-08-21T18:29:45+08:00",
-  "finished_at": "2026-08-21T18:30:10+08:00",
+  "started_at": "2026-08-21T19:00:19+08:00",
+  "finished_at": "2026-08-21T19:01:00+08:00",
   "status": "SUCCESS",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T18:29:45+08:00",
-      "finished_at": "2026-08-21T18:29:45+08:00",
+      "started_at": "2026-08-21T19:00:19+08:00",
+      "finished_at": "2026-08-21T19:00:20+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
@@ -19,8 +19,8 @@
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T18:29:45+08:00",
-      "finished_at": "2026-08-21T18:29:45+08:00",
+      "started_at": "2026-08-21T19:00:20+08:00",
+      "finished_at": "2026-08-21T19:00:20+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-21 已有 SUCCESS 且 daily_prices 已存在"
@@ -29,8 +29,8 @@
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T18:29:45+08:00",
-      "finished_at": "2026-08-21T18:29:46+08:00",
+      "started_at": "2026-08-21T19:00:20+08:00",
+      "finished_at": "2026-08-21T19:00:20+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-21 已有 SUCCESS 且 daily_prices 已存在"
@@ -39,8 +39,8 @@
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T18:29:46+08:00",
-      "finished_at": "2026-08-21T18:29:46+08:00",
+      "started_at": "2026-08-21T19:00:20+08:00",
+      "finished_at": "2026-08-21T19:00:20+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-21 已有 SUCCESS 且 institutional_trades 已存在"
@@ -49,8 +49,8 @@
     {
       "name": "foreign_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T18:29:46+08:00",
-      "finished_at": "2026-08-21T18:29:46+08:00",
+      "started_at": "2026-08-21T19:00:20+08:00",
+      "finished_at": "2026-08-21T19:00:20+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-21 已有 SUCCESS 且 institutional_trades 已存在"
@@ -59,8 +59,8 @@
     {
       "name": "tdcc_latest",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T18:29:46+08:00",
-      "finished_at": "2026-08-21T18:29:46+08:00",
+      "started_at": "2026-08-21T19:00:20+08:00",
+      "finished_at": "2026-08-21T19:00:20+08:00",
       "return_code": 0,
       "log_tail": [
         "========================================================================",
@@ -73,12 +73,12 @@
     {
       "name": "ranking_snapshot",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T18:29:46+08:00",
-      "finished_at": "2026-08-21T18:30:10+08:00",
+      "started_at": "2026-08-21T19:00:20+08:00",
+      "finished_at": "2026-08-21T19:01:00+08:00",
       "return_code": 0,
       "log_tail": [
         "  \"reference_date\": \"2026-08-21\",",
-        "  \"generated_at\": \"2026-08-21T18:30:10+08:00\",",
+        "  \"generated_at\": \"2026-08-21T19:01:00+08:00\",",
         "  \"active_stocks\": 1979,",
         "  \"active_twse\": 1089,",
         "  \"active_tpex\": 890,",
