@@ -1,0 +1,167 @@
+name: Daily StockWaveScanner
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Optional YYYY-MM-DD. Leave blank for today in Asia/Taipei."
+        required: false
+        type: string
+  schedule:
+    - cron: "37 18 * * 1-5"
+      timezone: "Asia/Taipei"
+    - cron: "37 20 * * 1-5"
+      timezone: "Asia/Taipei"
+
+concurrency:
+  group: stockwavescanner-daily
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      pipeline_outcome: ${{ steps.pipeline.outcome }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve Taipei date
+        id: target
+        shell: bash
+        run: |
+          INPUT_DATE="${{ github.event.inputs.date }}"
+          if [ -n "$INPUT_DATE" ]; then
+            TARGET_DATE="$INPUT_DATE"
+          else
+            TARGET_DATE="$(TZ=Asia/Taipei date +%F)"
+          fi
+          echo "date=$TARGET_DATE" >> "$GITHUB_OUTPUT"
+          echo "TARGET_DATE=$TARGET_DATE" >> "$GITHUB_ENV"
+          echo "Target date: $TARGET_DATE"
+
+      - name: Restore persistent SQLite database
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          mkdir -p data runtime docs
+          if ! gh release view data-latest >/dev/null 2>&1; then
+            echo "ERROR: GitHub Release 'data-latest' does not exist."
+            echo "Create that release once and upload stocks-db.zip containing stocks.db."
+            exit 1
+          fi
+          gh release download data-latest --pattern "stocks-db.zip" --clobber
+          if [ ! -f stocks-db.zip ]; then
+            echo "ERROR: data-latest has no stocks-db.zip asset."
+            exit 1
+          fi
+          unzip -jo stocks-db.zip "*stocks.db" -d data/
+          test -f data/stocks.db
+          ls -lh data/stocks.db
+
+      - name: Run daily pipeline
+        id: pipeline
+        continue-on-error: true
+        run: python scripts/run_daily_github.py --date "$TARGET_DATE"
+
+      - name: Render mobile GitHub Pages
+        if: always()
+        run: python scripts/render_github_pages.py --runtime-dir runtime --output-dir docs
+
+      - name: Checkpoint SQLite
+        if: always()
+        shell: bash
+        run: |
+          if [ -f data/stocks.db ]; then
+            python -c 'import sqlite3; c=sqlite3.connect("data/stocks.db"); print(c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()); c.close()'
+          fi
+
+      - name: Save persistent SQLite database
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [ -f data/stocks.db ]; then
+            rm -f stocks-db.zip
+            zip -j stocks-db.zip data/stocks.db
+            gh release upload data-latest stocks-db.zip --clobber
+          fi
+
+      - name: Publish lightweight run status to repository
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p ops
+          HAVE_STATUS=0
+          if [ -f runtime/run_status.json ]; then
+            cp runtime/run_status.json ops/latest-run.json
+            HAVE_STATUS=1
+          fi
+          if [ -f runtime/summary.json ]; then
+            cp runtime/summary.json ops/latest-summary.json
+            HAVE_STATUS=1
+          fi
+          if [ "$HAVE_STATUS" = "1" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add ops/
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: daily status $TARGET_DATE"
+              git push
+            fi
+          fi
+
+      - name: Configure GitHub Pages
+        if: always()
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs
+
+  deploy:
+    if: always() && needs.build.result == 'success'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  report:
+    if: always()
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark crawler failure in Actions
+        shell: bash
+        run: |
+          echo "Pipeline outcome: ${{ needs.build.outputs.pipeline_outcome }}"
+          if [ "${{ needs.build.outputs.pipeline_outcome }}" != "success" ]; then
+            echo "Daily pipeline had an ERROR. The status page was still published when possible."
+            exit 1
+          fi
