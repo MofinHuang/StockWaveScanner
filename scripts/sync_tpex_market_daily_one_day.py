@@ -11,6 +11,7 @@ import argparse
 from datetime import datetime
 
 from crawler.tpex_market_daily import SOURCE, download_day
+from db.database import get_connection
 from db.repository import crawl_success_exists
 
 
@@ -21,6 +22,25 @@ def parse_date(value: str):
         raise argparse.ArgumentTypeError("日期格式必須為 YYYY-MM-DD") from exc
 
 
+def normalized_rows_exist(trade_date: str) -> bool:
+    conn = get_connection()
+    try:
+        return (
+            conn.execute(
+                """
+                SELECT 1
+                FROM daily_prices
+                WHERE market='TPEx' AND trade_date=?
+                LIMIT 1
+                """,
+                (trade_date,),
+            ).fetchone()
+            is not None
+        )
+    finally:
+        conn.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="同步 TPEx 單日全市場日 K")
     parser.add_argument("--date", required=True, type=parse_date)
@@ -28,15 +48,25 @@ def main() -> None:
     args = parser.parse_args()
 
     trade_date = args.date
+    date_text = trade_date.isoformat()
     request_key = trade_date.strftime("%Y%m%d")
 
     if trade_date.weekday() >= 5:
         print(f"[SKIP] {trade_date} 為週末")
         return
 
-    if not args.force and crawl_success_exists(SOURCE, request_key):
-        print(f"[SKIP] {trade_date} 已有 SUCCESS")
+    has_success = crawl_success_exists(SOURCE, request_key)
+    has_rows = normalized_rows_exist(date_text)
+
+    if not args.force and has_success and has_rows:
+        print(f"[SKIP] {trade_date} 已有 SUCCESS 且 daily_prices 已存在")
         return
+
+    if not args.force and has_success and not has_rows:
+        print(
+            f"[RETRY] {trade_date} crawl log 為 SUCCESS，"
+            "但 daily_prices 不存在；視為 stale SUCCESS，重新抓取"
+        )
 
     count = download_day(trade_date)
     print(f"[OK] TPEx price {trade_date}: {count:,} rows")

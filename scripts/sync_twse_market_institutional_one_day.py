@@ -22,6 +22,42 @@ def parse_date(value: str):
         raise argparse.ArgumentTypeError("日期格式必須為 YYYY-MM-DD") from exc
 
 
+def _has_price(trade_date: str) -> bool:
+    conn = get_connection()
+    try:
+        return (
+            conn.execute(
+                """
+                SELECT 1 FROM daily_prices
+                WHERE market='TWSE' AND trade_date=?
+                LIMIT 1
+                """,
+                (trade_date,),
+            ).fetchone()
+            is not None
+        )
+    finally:
+        conn.close()
+
+
+def _has_normalized_foreign(trade_date: str) -> bool:
+    conn = get_connection()
+    try:
+        return (
+            conn.execute(
+                """
+                SELECT 1 FROM institutional_trades
+                WHERE market='TWSE' AND trade_date=?
+                LIMIT 1
+                """,
+                (trade_date,),
+            ).fetchone()
+            is not None
+        )
+    finally:
+        conn.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="同步 TWSE 單日全市場外資")
     parser.add_argument("--date", required=True, type=parse_date)
@@ -29,28 +65,29 @@ def main() -> None:
     args = parser.parse_args()
 
     trade_date = args.date
+    date_text = trade_date.isoformat()
     request_key = trade_date.strftime("%Y%m%d")
 
     if trade_date.weekday() >= 5:
         print(f"[SKIP] {trade_date} 為週末")
         return
 
-    conn = get_connection()
-    try:
-        has_price = conn.execute(
-            "SELECT 1 FROM daily_prices WHERE market='TWSE' AND trade_date=? LIMIT 1",
-            (trade_date.isoformat(),),
-        ).fetchone() is not None
-    finally:
-        conn.close()
-
-    if not has_price:
+    if not _has_price(date_text):
         print(f"[SKIP] {trade_date} TWSE 無 daily price，視為非交易日/無行情日")
         return
 
-    if not args.force and crawl_success_exists(SOURCE, request_key):
-        print(f"[SKIP] {trade_date} 已有 SUCCESS")
+    has_success = crawl_success_exists(SOURCE, request_key)
+    has_rows = _has_normalized_foreign(date_text)
+
+    if not args.force and has_success and has_rows:
+        print(f"[SKIP] {trade_date} 已有 SUCCESS 且 institutional_trades 已存在")
         return
+
+    if not args.force and has_success and not has_rows:
+        print(
+            f"[RETRY] {trade_date} crawl log 為 SUCCESS，"
+            "但 institutional_trades 不存在；視為 stale SUCCESS，重新抓取"
+        )
 
     count = download_day(trade_date)
     print(f"[OK] TWSE foreign {trade_date}: {count:,} rows")
