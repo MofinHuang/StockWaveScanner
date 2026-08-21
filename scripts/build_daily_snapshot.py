@@ -139,6 +139,56 @@ def _coverage(conn, reference_date: str) -> dict:
     }
 
 
+
+def _price_snapshot(conn, reference_date: str) -> dict[tuple[str, str], dict]:
+    rows = conn.execute(
+        """
+        SELECT
+            p.stock_id,
+            p.market,
+            p.open,
+            p.high,
+            p.low,
+            p.close,
+            p.volume,
+            (
+                SELECT p2.close
+                FROM daily_prices p2
+                WHERE p2.stock_id = p.stock_id
+                  AND p2.market = p.market
+                  AND p2.trade_date < p.trade_date
+                ORDER BY p2.trade_date DESC
+                LIMIT 1
+            ) AS previous_close
+        FROM daily_prices p
+        WHERE p.trade_date = ?
+        """,
+        (reference_date,),
+    ).fetchall()
+
+    result = {}
+    for row in rows:
+        close = row["close"]
+        previous_close = row["previous_close"]
+        change = None
+        change_pct = None
+        if close is not None and previous_close not in (None, 0):
+            change = float(close) - float(previous_close)
+            change_pct = change / float(previous_close) * 100.0
+
+        result[(str(row["stock_id"]), str(row["market"]))] = {
+            "trade_date": reference_date,
+            "open": row["open"],
+            "high": row["high"],
+            "low": row["low"],
+            "close": close,
+            "volume": row["volume"],
+            "previous_close": previous_close,
+            "change": round(change, 4) if change is not None else None,
+            "change_pct": round(change_pct, 4) if change_pct is not None else None,
+        }
+    return result
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="建立 GitHub Pages 每日 snapshot")
     parser.add_argument("--date", required=True, help="as-of date YYYY-MM-DD")
@@ -208,9 +258,26 @@ def main() -> None:
             "latest_dates": latest,
         }
 
+        price_map = _price_snapshot(conn, reference_date)
         ranking_records = json.loads(
             ranking.to_json(orient="records", force_ascii=False)
         )
+        for record in ranking_records:
+            price = price_map.get(
+                (str(record.get("stock_id")), str(record.get("market"))),
+                {},
+            )
+            record.update({
+                "price_date": price.get("trade_date"),
+                "open": price.get("open"),
+                "high": price.get("high"),
+                "low": price.get("low"),
+                "close": price.get("close"),
+                "volume": price.get("volume"),
+                "previous_close": price.get("previous_close"),
+                "change": price.get("change"),
+                "change_pct": price.get("change_pct"),
+            })
 
         (output_dir / "summary.json").write_text(
             json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"

@@ -36,12 +36,12 @@ INDEX_HTML = r'''<!doctype html>
     input, select { background:#0a1626; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 11px; font:inherit; min-height:42px; }
     input { flex:1 1 240px; }
     .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:14px; background:var(--panel); }
-    table { border-collapse:collapse; width:100%; min-width:920px; }
+    table { border-collapse:collapse; width:100%; min-width:1160px; }
     th, td { padding:10px 9px; border-bottom:1px solid var(--line); text-align:right; font-size:13px; white-space:nowrap; }
     th { position:sticky; top:0; z-index:1; background:#102037; color:#b9c8da; }
     th:nth-child(2),th:nth-child(3),th:nth-child(4),td:nth-child(2),td:nth-child(3),td:nth-child(4) { text-align:left; }
     tr:last-child td { border-bottom:0; }
-    .pass { color:var(--ok); font-weight:800; } .fail { color:#aab8c8; }
+    .pass { color:var(--ok); font-weight:800; } .fail { color:#aab8c8; } .up { color:#ff7b7b; font-weight:800; } .down { color:#58d68d; font-weight:800; } .flat { color:#c2cfdd; }
     .errorbox { margin-top:12px; border:1px solid #633; background:#29181c; border-radius:12px; padding:12px; color:#ffd7d7; white-space:pre-wrap; overflow:auto; }
     footer { color:var(--muted); font-size:12px; margin-top:26px; line-height:1.7; }
     a { color:var(--accent); }
@@ -75,7 +75,7 @@ INDEX_HTML = r'''<!doctype html>
   </div>
   <div class="small" id="count"></div>
   <div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>代號</th><th>名稱</th><th>市場</th><th>Sleep</th><th>Foreign</th><th>TDCC</th><th>Chip</th><th>Breakout</th><th>Total</th><th>Final</th></tr></thead>
+    <thead><tr><th>#</th><th>代號</th><th>名稱</th><th>市場</th><th>今日收盤</th><th>漲跌</th><th>漲跌幅</th><th>成交量</th><th>Sleep</th><th>Foreign</th><th>TDCC</th><th>Chip</th><th>Breakout</th><th>Total</th><th>Final</th></tr></thead>
     <tbody id="ranking"></tbody>
   </table></div>
 
@@ -90,7 +90,10 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function card(label,value,small=''){return `<div class="card"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div>${small?`<div class="small">${esc(small)}</div>`:''}</div>`}
 function statusClass(s){return s==='SUCCESS'?'ok':s==='ERROR'?'bad':s==='BLOCKED'?'warn':''}
 let rows=[];
-function renderRanking(){const q=document.querySelector('#search').value.trim().toLowerCase();const f=document.querySelector('#filter').value;const filtered=rows.filter(r=>{const text=`${r.stock_id} ${r.stock_name}`.toLowerCase();if(q&&!text.includes(q))return false;if(f==='PASS'&&r.status!=='PASS')return false;if(f==='chip'&&r.chip_status!=='PASS')return false;if(f==='breakout'&&r.breakout_status!=='PASS')return false;if(f==='sleep'&&r.sleep_status!=='PASS')return false;return true;});document.querySelector('#count').textContent=`顯示 ${filtered.length} / ${rows.length} 檔`;document.querySelector('#ranking').innerHTML=filtered.map(r=>`<tr><td>${r.rank}</td><td>${esc(r.stock_id)}</td><td>${esc(r.stock_name)}</td><td>${esc(r.market)}</td><td>${r.sleep_score}</td><td>${r.foreign_score}</td><td>${r.tdcc_score}</td><td>${r.chip_score}</td><td>${r.breakout_score}</td><td><strong>${r.total_score}</strong></td><td class="${r.status==='PASS'?'pass':'fail'}">${esc(r.status)}</td></tr>`).join('');}
+function num(v,d=2){if(v===null||v===undefined||v==='')return '-';const n=Number(v);return Number.isFinite(n)?n.toLocaleString('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:d}):'-'}
+function signed(v,d=2){if(v===null||v===undefined||v==='')return '-';const n=Number(v);if(!Number.isFinite(n))return '-';return `${n>0?'+':''}${num(n,d)}`}
+function moveClass(v){const n=Number(v);return n>0?'up':n<0?'down':'flat'}
+function renderRanking(){const q=document.querySelector('#search').value.trim().toLowerCase();const f=document.querySelector('#filter').value;const filtered=rows.filter(r=>{const text=`${r.stock_id} ${r.stock_name}`.toLowerCase();if(q&&!text.includes(q))return false;if(f==='PASS'&&r.status!=='PASS')return false;if(f==='chip'&&r.chip_status!=='PASS')return false;if(f==='breakout'&&r.breakout_status!=='PASS')return false;if(f==='sleep'&&r.sleep_status!=='PASS')return false;return true;});document.querySelector('#count').textContent=`顯示 ${filtered.length} / ${rows.length} 檔`;document.querySelector('#ranking').innerHTML=filtered.map(r=>`<tr><td>${r.rank}</td><td>${esc(r.stock_id)}</td><td>${esc(r.stock_name)}</td><td>${esc(r.market)}</td><td><strong>${num(r.close,2)}</strong></td><td class="${moveClass(r.change)}">${signed(r.change,2)}</td><td class="${moveClass(r.change_pct)}">${r.change_pct===null||r.change_pct===undefined?'-':signed(r.change_pct,2)+'%'}</td><td>${num(r.volume,0)}</td><td>${r.sleep_score}</td><td>${r.foreign_score}</td><td>${r.tdcc_score}</td><td>${r.chip_score}</td><td>${r.breakout_score}</td><td><strong>${r.total_score}</strong></td><td class="${r.status==='PASS'?'pass':'fail'}">${esc(r.status)}</td></tr>`).join('');}
 async function load(){let status={status:'ERROR',steps:[]}, summary=null;try{status=await (await fetch('status.json',{cache:'no-store'})).json()}catch(e){}try{summary=await (await fetch('summary.json',{cache:'no-store'})).json()}catch(e){}try{rows=await (await fetch('ranking.json',{cache:'no-store'})).json()}catch(e){rows=[]}
  const pill=document.querySelector('#runPill');pill.textContent=status.status||'UNKNOWN';pill.className='pill '+statusClass(status.status);
  document.querySelector('#subtitle').textContent=summary?`資料基準日 ${summary.reference_date} · 網頁產生 ${summary.generated_at}`:`排程日期 ${status.requested_date||'-'} · 本次資料尚未完成`;
