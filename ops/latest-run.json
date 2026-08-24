@@ -1,91 +1,125 @@
 {
   "requested_date": "2026-08-24",
-  "started_at": "2026-08-24T19:04:26+08:00",
-  "finished_at": "2026-08-24T19:04:46+08:00",
-  "status": "ERROR",
+  "started_at": "2026-08-24T21:33:01+08:00",
+  "finished_at": "2026-08-24T21:33:48+08:00",
+  "status": "SUCCESS",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-08-24T19:04:26+08:00",
-      "finished_at": "2026-08-24T19:04:27+08:00",
+      "started_at": "2026-08-24T21:33:01+08:00",
+      "finished_at": "2026-08-24T21:33:02+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
         "[OK] active_stocks=1979",
-        "[OK] latest_price_on_or_before_2026-08-24=2026-08-21"
+        "[OK] latest_price_on_or_before_2026-08-24=2026-08-24"
       ]
     },
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-24T19:04:27+08:00",
-      "finished_at": "2026-08-24T19:04:30+08:00",
+      "started_at": "2026-08-24T21:33:02+08:00",
+      "finished_at": "2026-08-24T21:33:02+08:00",
       "return_code": 0,
       "log_tail": [
-        "[DEBUG] 2026-08-24 step 1: start_crawl_log",
-        "[DEBUG] 2026-08-24 step 1 OK",
-        "[DEBUG] 2026-08-24 step 2: HTTP GET",
-        "[DEBUG] 2026-08-24 step 2 OK",
-        "[DEBUG] 2026-08-24 step 3: save_raw_response",
-        "[DEBUG] 2026-08-24 step 3 OK",
-        "[DEBUG] 2026-08-24 step 4: parse_market_daily",
-        "[DEBUG] 2026-08-24 step 4 OK rows=1,092",
-        "[DEBUG] 2026-08-24 step 5: upsert_daily_prices",
-        "[DEBUG] 2026-08-24 step 5 OK rows=1,092",
-        "[DEBUG] 2026-08-24 step 6: finish_crawl_success",
-        "[DEBUG] 2026-08-24 step 6 OK",
-        "[OK] TWSE price 2026-08-24: 1,092 rows"
+        "[SKIP] 2026-08-24 已有 SUCCESS 且 daily_prices 已存在"
       ]
     },
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-24T19:04:30+08:00",
-      "finished_at": "2026-08-24T19:04:39+08:00",
+      "started_at": "2026-08-24T21:33:02+08:00",
+      "finished_at": "2026-08-24T21:33:02+08:00",
       "return_code": 0,
       "log_tail": [
-        "[OK] TPEx price 2026-08-24: 860 rows"
+        "[SKIP] 2026-08-24 已有 SUCCESS 且 daily_prices 已存在"
       ]
     },
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-24T19:04:39+08:00",
-      "finished_at": "2026-08-24T19:04:40+08:00",
+      "started_at": "2026-08-24T21:33:02+08:00",
+      "finished_at": "2026-08-24T21:33:02+08:00",
       "return_code": 0,
       "log_tail": [
-        "[OK] TWSE foreign 2026-08-24: 1,081 rows"
+        "[SKIP] 2026-08-24 已有 SUCCESS 且 institutional_trades 已存在"
       ]
     },
     {
       "name": "foreign_tpex",
-      "status": "ERROR",
-      "started_at": "2026-08-24T19:04:40+08:00",
-      "finished_at": "2026-08-24T19:04:46+08:00",
-      "return_code": 1,
+      "status": "SUCCESS",
+      "started_at": "2026-08-24T21:33:02+08:00",
+      "finished_at": "2026-08-24T21:33:15+08:00",
+      "return_code": 0,
       "log_tail": [
         "[INFO] TPEx Foreign trade_date=2026-08-24",
         "[INFO] 抓取 TPEx qfiiStat buy / sell...",
-        "[ERROR] HTTPError: 520 Server Error: <none> for url: https://www.tpex.org.tw/www/zh-tw/insti/qfiiStat",
-        "[ERROR] HTTPError: 520 Server Error: <none> for url: https://www.tpex.org.tw/www/zh-tw/insti/qfiiStat"
+        "[INFO] 保存 raw response...",
+        "[INFO] normalized records = 746",
+        "[INFO] 寫入 institutional_trades...",
+        "[OK] TPEx Foreign 2026-08-24",
+        "[OK] record_count = 746"
       ]
     },
     {
       "name": "tdcc_latest",
-      "status": "BLOCKED",
-      "started_at": null,
-      "finished_at": null,
-      "return_code": null,
-      "log_tail": []
+      "status": "SUCCESS",
+      "started_at": "2026-08-24T21:33:15+08:00",
+      "finished_at": "2026-08-24T21:33:18+08:00",
+      "return_code": 0,
+      "log_tail": [
+        "========================================================================",
+        "TDCC Market Latest Sync",
+        "========================================================================",
+        "[INFO] request_key = TDCC_SHAREHOLDING_LATEST:2026-08-24",
+        "[INFO] 讀取 active TWSE + TPEx 股票主檔...",
+        "[INFO] active 4-digit stocks = 1979",
+        "[INFO] 抓取 TDCC Open Data 1-5...",
+        "[INFO] raw rows = 68578",
+        "[INFO] data_date = 2026-08-21",
+        "[INFO] normalized active-stock rows = 1978",
+        "[INFO] 保存 Raw...",
+        "[INFO] 寫入 tdcc_holdings...",
+        "",
+        "[OK] TDCC Market Latest",
+        "[OK] data_date = 2026-08-21",
+        "[OK] record_count = 1978"
+      ]
     },
     {
       "name": "ranking_snapshot",
-      "status": "BLOCKED",
-      "started_at": null,
-      "finished_at": null,
-      "return_code": null,
-      "log_tail": []
+      "status": "SUCCESS",
+      "started_at": "2026-08-24T21:33:18+08:00",
+      "finished_at": "2026-08-24T21:33:48+08:00",
+      "return_code": 0,
+      "log_tail": [
+        "  \"reference_date\": \"2026-08-24\",",
+        "  \"generated_at\": \"2026-08-24T21:33:48+08:00\",",
+        "  \"active_stocks\": 1979,",
+        "  \"active_twse\": 1089,",
+        "  \"active_tpex\": 890,",
+        "  \"price_ready\": 1963,",
+        "  \"foreign_ready\": 1977,",
+        "  \"tdcc_ready\": 1979,",
+        "  \"ranking_ready\": 1962,",
+        "  \"tpex_recent_foreign_success_days\": 20,",
+        "  \"ranking_rows\": 1962,",
+        "  \"sleep_pass\": 769,",
+        "  \"foreign_pass\": 28,",
+        "  \"tdcc_pass\": 88,",
+        "  \"chip_pass\": 3,",
+        "  \"breakout_pass\": 20,",
+        "  \"final_pass\": 0,",
+        "  \"latest_dates\": {",
+        "    \"twse_price\": \"2026-08-24\",",
+        "    \"tpex_price\": \"2026-08-24\",",
+        "    \"twse_foreign\": \"2026-08-24\",",
+        "    \"tpex_foreign\": \"2026-08-24\",",
+        "    \"tdcc\": \"2026-08-21\"",
+        "  }",
+        "}"
+      ]
     }
   ]
 }
