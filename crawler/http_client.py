@@ -1,4 +1,5 @@
 from urllib.parse import urlparse
+import time
 import warnings
 
 import requests
@@ -9,6 +10,22 @@ KNOWN_SSL_ERRORS = (
     "certificate_verify_failed",
     "missing subject key identifier",
     "certificate verify failed",
+)
+
+# 暫時性 Server / Gateway 錯誤
+# 這些狀態碼適合重新嘗試
+RETRY_STATUS_CODES = (
+    502,
+    503,
+    504,
+    520,
+)
+
+# 第一次失敗後等待 3 秒
+# 第二次失敗後等待 8 秒
+RETRY_DELAYS = (
+    3,
+    8,
 )
 
 
@@ -76,35 +93,66 @@ def _request_with_fallback(
     service_name: str,
     **kwargs,
 ):
-    try:
+    last_response = None
 
-        return request_func(
-            verify=True,
-            **kwargs,
-        )
+    for attempt in range(
+        len(RETRY_DELAYS) + 1
+    ):
 
-    except requests.exceptions.SSLError as ex:
+        try:
 
-        if not _is_known_ssl_error(ex):
-            raise
-
-        print(
-            f"[WARN] {service_name} "
-            "SSL 憑證驗證失敗，"
-            "使用限定網域 verify=False fallback"
-        )
-
-        with warnings.catch_warnings():
-
-            warnings.simplefilter(
-                "ignore",
-                InsecureRequestWarning,
-            )
-
-            return request_func(
-                verify=False,
+            response = request_func(
+                verify=True,
                 **kwargs,
             )
+
+            # 成功，直接回傳
+            if response.status_code not in RETRY_STATUS_CODES:
+                return response
+
+            last_response = response
+
+            # 已經沒有 retry 次數
+            if attempt >= len(RETRY_DELAYS):
+                return response
+
+            delay = RETRY_DELAYS[attempt]
+
+            print(
+                f"[WARN] {service_name} "
+                f"HTTP {response.status_code}，"
+                f"{delay} 秒後重新嘗試 "
+                f"({attempt + 1}/{len(RETRY_DELAYS)})"
+            )
+
+            time.sleep(
+                delay
+            )
+
+        except requests.exceptions.SSLError as ex:
+
+            if not _is_known_ssl_error(ex):
+                raise
+
+            print(
+                f"[WARN] {service_name} "
+                "SSL 憑證驗證失敗，"
+                "使用限定網域 verify=False fallback"
+            )
+
+            with warnings.catch_warnings():
+
+                warnings.simplefilter(
+                    "ignore",
+                    InsecureRequestWarning,
+                )
+
+                return request_func(
+                    verify=False,
+                    **kwargs,
+                )
+
+    return last_response
 
 
 def tpex_get(
