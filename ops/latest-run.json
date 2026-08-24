@@ -1,108 +1,91 @@
 {
-  "requested_date": "2026-08-21",
-  "started_at": "2026-08-21T21:28:44+08:00",
-  "finished_at": "2026-08-21T21:29:27+08:00",
-  "status": "SUCCESS",
+  "requested_date": "2026-08-24",
+  "started_at": "2026-08-24T19:04:26+08:00",
+  "finished_at": "2026-08-24T19:04:46+08:00",
+  "status": "ERROR",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T21:28:44+08:00",
-      "finished_at": "2026-08-21T21:28:44+08:00",
+      "started_at": "2026-08-24T19:04:26+08:00",
+      "finished_at": "2026-08-24T19:04:27+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
         "[OK] active_stocks=1979",
-        "[OK] latest_price_on_or_before_2026-08-21=2026-08-21"
+        "[OK] latest_price_on_or_before_2026-08-24=2026-08-21"
       ]
     },
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T21:28:44+08:00",
-      "finished_at": "2026-08-21T21:28:45+08:00",
+      "started_at": "2026-08-24T19:04:27+08:00",
+      "finished_at": "2026-08-24T19:04:30+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-08-21 已有 SUCCESS 且 daily_prices 已存在"
+        "[DEBUG] 2026-08-24 step 1: start_crawl_log",
+        "[DEBUG] 2026-08-24 step 1 OK",
+        "[DEBUG] 2026-08-24 step 2: HTTP GET",
+        "[DEBUG] 2026-08-24 step 2 OK",
+        "[DEBUG] 2026-08-24 step 3: save_raw_response",
+        "[DEBUG] 2026-08-24 step 3 OK",
+        "[DEBUG] 2026-08-24 step 4: parse_market_daily",
+        "[DEBUG] 2026-08-24 step 4 OK rows=1,092",
+        "[DEBUG] 2026-08-24 step 5: upsert_daily_prices",
+        "[DEBUG] 2026-08-24 step 5 OK rows=1,092",
+        "[DEBUG] 2026-08-24 step 6: finish_crawl_success",
+        "[DEBUG] 2026-08-24 step 6 OK",
+        "[OK] TWSE price 2026-08-24: 1,092 rows"
       ]
     },
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T21:28:45+08:00",
-      "finished_at": "2026-08-21T21:28:45+08:00",
+      "started_at": "2026-08-24T19:04:30+08:00",
+      "finished_at": "2026-08-24T19:04:39+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-08-21 已有 SUCCESS 且 daily_prices 已存在"
+        "[OK] TPEx price 2026-08-24: 860 rows"
       ]
     },
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-21T21:28:45+08:00",
-      "finished_at": "2026-08-21T21:28:45+08:00",
+      "started_at": "2026-08-24T19:04:39+08:00",
+      "finished_at": "2026-08-24T19:04:40+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-08-21 已有 SUCCESS 且 institutional_trades 已存在"
+        "[OK] TWSE foreign 2026-08-24: 1,081 rows"
       ]
     },
     {
       "name": "foreign_tpex",
-      "status": "SUCCESS",
-      "started_at": "2026-08-21T21:28:45+08:00",
-      "finished_at": "2026-08-21T21:28:45+08:00",
-      "return_code": 0,
+      "status": "ERROR",
+      "started_at": "2026-08-24T19:04:40+08:00",
+      "finished_at": "2026-08-24T19:04:46+08:00",
+      "return_code": 1,
       "log_tail": [
-        "[SKIP] 2026-08-21 已有 SUCCESS 且 institutional_trades 已存在"
+        "[INFO] TPEx Foreign trade_date=2026-08-24",
+        "[INFO] 抓取 TPEx qfiiStat buy / sell...",
+        "[ERROR] HTTPError: 520 Server Error: <none> for url: https://www.tpex.org.tw/www/zh-tw/insti/qfiiStat",
+        "[ERROR] HTTPError: 520 Server Error: <none> for url: https://www.tpex.org.tw/www/zh-tw/insti/qfiiStat"
       ]
     },
     {
       "name": "tdcc_latest",
-      "status": "SUCCESS",
-      "started_at": "2026-08-21T21:28:45+08:00",
-      "finished_at": "2026-08-21T21:28:45+08:00",
-      "return_code": 0,
-      "log_tail": [
-        "========================================================================",
-        "TDCC Market Latest Sync",
-        "========================================================================",
-        "[INFO] request_key = TDCC_SHAREHOLDING_LATEST:2026-08-21",
-        "[SKIP] 今日已有 SUCCESS"
-      ]
+      "status": "BLOCKED",
+      "started_at": null,
+      "finished_at": null,
+      "return_code": null,
+      "log_tail": []
     },
     {
       "name": "ranking_snapshot",
-      "status": "SUCCESS",
-      "started_at": "2026-08-21T21:28:45+08:00",
-      "finished_at": "2026-08-21T21:29:27+08:00",
-      "return_code": 0,
-      "log_tail": [
-        "  \"reference_date\": \"2026-08-21\",",
-        "  \"generated_at\": \"2026-08-21T21:29:27+08:00\",",
-        "  \"active_stocks\": 1979,",
-        "  \"active_twse\": 1089,",
-        "  \"active_tpex\": 890,",
-        "  \"price_ready\": 1963,",
-        "  \"foreign_ready\": 1977,",
-        "  \"tdcc_ready\": 1979,",
-        "  \"ranking_ready\": 1962,",
-        "  \"tpex_recent_foreign_success_days\": 20,",
-        "  \"ranking_rows\": 1962,",
-        "  \"sleep_pass\": 724,",
-        "  \"foreign_pass\": 20,",
-        "  \"tdcc_pass\": 87,",
-        "  \"chip_pass\": 2,",
-        "  \"breakout_pass\": 49,",
-        "  \"final_pass\": 0,",
-        "  \"latest_dates\": {",
-        "    \"twse_price\": \"2026-08-21\",",
-        "    \"tpex_price\": \"2026-08-21\",",
-        "    \"twse_foreign\": \"2026-08-21\",",
-        "    \"tpex_foreign\": \"2026-08-21\",",
-        "    \"tdcc\": \"2026-08-14\"",
-        "  }",
-        "}"
-      ]
+      "status": "BLOCKED",
+      "started_at": null,
+      "finished_at": null,
+      "return_code": null,
+      "log_tail": []
     }
   ]
 }
