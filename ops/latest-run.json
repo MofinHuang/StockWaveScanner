@@ -1,104 +1,133 @@
 {
-  "requested_date": "2026-08-25",
-  "started_at": "2026-08-25T21:30:39+08:00",
-  "finished_at": "2026-08-25T21:31:20+08:00",
+  "requested_date": "2026-08-26",
+  "started_at": "2026-08-26T19:04:34+08:00",
+  "finished_at": "2026-08-26T19:05:28+08:00",
   "status": "SUCCESS",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-08-25T21:30:39+08:00",
-      "finished_at": "2026-08-25T21:30:39+08:00",
+      "started_at": "2026-08-26T19:04:34+08:00",
+      "finished_at": "2026-08-26T19:04:34+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
         "[OK] active_stocks=1979",
-        "[OK] latest_price_on_or_before_2026-08-25=2026-08-25"
+        "[OK] latest_price_on_or_before_2026-08-26=2026-08-25"
       ]
     },
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-25T21:30:39+08:00",
-      "finished_at": "2026-08-25T21:30:40+08:00",
+      "started_at": "2026-08-26T19:04:34+08:00",
+      "finished_at": "2026-08-26T19:04:38+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-08-25 已有 SUCCESS 且 daily_prices 已存在"
+        "[DEBUG] 2026-08-26 step 1: start_crawl_log",
+        "[DEBUG] 2026-08-26 step 1 OK",
+        "[DEBUG] 2026-08-26 step 2: HTTP GET",
+        "[DEBUG] 2026-08-26 step 2 OK",
+        "[DEBUG] 2026-08-26 step 3: save_raw_response",
+        "[DEBUG] 2026-08-26 step 3 OK",
+        "[DEBUG] 2026-08-26 step 4: parse_market_daily",
+        "[DEBUG] 2026-08-26 step 4 OK rows=1,093",
+        "[DEBUG] 2026-08-26 step 5: upsert_daily_prices",
+        "[DEBUG] 2026-08-26 step 5 OK rows=1,093",
+        "[DEBUG] 2026-08-26 step 6: finish_crawl_success",
+        "[DEBUG] 2026-08-26 step 6 OK",
+        "[OK] TWSE price 2026-08-26: 1,093 rows"
       ]
     },
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-25T21:30:40+08:00",
-      "finished_at": "2026-08-25T21:30:40+08:00",
+      "started_at": "2026-08-26T19:04:38+08:00",
+      "finished_at": "2026-08-26T19:04:42+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-08-25 已有 SUCCESS 且 daily_prices 已存在"
+        "[OK] TPEx price 2026-08-26: 872 rows"
       ]
     },
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-25T21:30:40+08:00",
-      "finished_at": "2026-08-25T21:30:40+08:00",
+      "started_at": "2026-08-26T19:04:42+08:00",
+      "finished_at": "2026-08-26T19:04:44+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-08-25 已有 SUCCESS 且 institutional_trades 已存在"
+        "[OK] TWSE foreign 2026-08-26: 1,086 rows"
       ]
     },
     {
       "name": "foreign_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-25T21:30:40+08:00",
-      "finished_at": "2026-08-25T21:30:40+08:00",
+      "started_at": "2026-08-26T19:04:44+08:00",
+      "finished_at": "2026-08-26T19:04:46+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-08-25 已有 SUCCESS 且 institutional_trades 已存在"
+        "[INFO] TPEx Foreign trade_date=2026-08-26",
+        "[INFO] 抓取 TPEx qfiiStat buy / sell...",
+        "[INFO] 保存 raw response...",
+        "[INFO] normalized records = 748",
+        "[INFO] 寫入 institutional_trades...",
+        "[OK] TPEx Foreign 2026-08-26",
+        "[OK] record_count = 748"
       ]
     },
     {
       "name": "tdcc_latest",
       "status": "SUCCESS",
-      "started_at": "2026-08-25T21:30:40+08:00",
-      "finished_at": "2026-08-25T21:30:40+08:00",
+      "started_at": "2026-08-26T19:04:46+08:00",
+      "finished_at": "2026-08-26T19:04:48+08:00",
       "return_code": 0,
       "log_tail": [
         "========================================================================",
         "TDCC Market Latest Sync",
         "========================================================================",
-        "[INFO] request_key = TDCC_SHAREHOLDING_LATEST:2026-08-25",
-        "[SKIP] 今日已有 SUCCESS"
+        "[INFO] request_key = TDCC_SHAREHOLDING_LATEST:2026-08-26",
+        "[INFO] 讀取 active TWSE + TPEx 股票主檔...",
+        "[INFO] active 4-digit stocks = 1979",
+        "[INFO] 抓取 TDCC Open Data 1-5...",
+        "[INFO] raw rows = 68578",
+        "[INFO] data_date = 2026-08-21",
+        "[INFO] normalized active-stock rows = 1978",
+        "[INFO] 保存 Raw...",
+        "[INFO] 寫入 tdcc_holdings...",
+        "",
+        "[OK] TDCC Market Latest",
+        "[OK] data_date = 2026-08-21",
+        "[OK] record_count = 1978"
       ]
     },
     {
       "name": "ranking_snapshot",
       "status": "SUCCESS",
-      "started_at": "2026-08-25T21:30:40+08:00",
-      "finished_at": "2026-08-25T21:31:20+08:00",
+      "started_at": "2026-08-26T19:04:48+08:00",
+      "finished_at": "2026-08-26T19:05:28+08:00",
       "return_code": 0,
       "log_tail": [
-        "  \"reference_date\": \"2026-08-25\",",
-        "  \"generated_at\": \"2026-08-25T21:31:20+08:00\",",
+        "  \"reference_date\": \"2026-08-26\",",
+        "  \"generated_at\": \"2026-08-26T19:05:28+08:00\",",
         "  \"active_stocks\": 1979,",
         "  \"active_twse\": 1089,",
         "  \"active_tpex\": 890,",
-        "  \"price_ready\": 1963,",
+        "  \"price_ready\": 1965,",
         "  \"foreign_ready\": 1977,",
         "  \"tdcc_ready\": 1979,",
-        "  \"ranking_ready\": 1962,",
+        "  \"ranking_ready\": 1964,",
         "  \"tpex_recent_foreign_success_days\": 20,",
-        "  \"ranking_rows\": 1962,",
-        "  \"sleep_pass\": 764,",
+        "  \"ranking_rows\": 1964,",
+        "  \"sleep_pass\": 770,",
         "  \"foreign_pass\": 28,",
         "  \"tdcc_pass\": 88,",
         "  \"chip_pass\": 3,",
-        "  \"breakout_pass\": 33,",
+        "  \"breakout_pass\": 62,",
         "  \"final_pass\": 0,",
         "  \"latest_dates\": {",
-        "    \"twse_price\": \"2026-08-25\",",
-        "    \"tpex_price\": \"2026-08-25\",",
-        "    \"twse_foreign\": \"2026-08-25\",",
-        "    \"tpex_foreign\": \"2026-08-25\",",
+        "    \"twse_price\": \"2026-08-26\",",
+        "    \"tpex_price\": \"2026-08-26\",",
+        "    \"twse_foreign\": \"2026-08-26\",",
+        "    \"tpex_foreign\": \"2026-08-26\",",
         "    \"tdcc\": \"2026-08-21\"",
         "  }",
         "}"
