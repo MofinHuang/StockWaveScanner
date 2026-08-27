@@ -1,14 +1,14 @@
 {
   "requested_date": "2026-08-28",
-  "started_at": "2026-08-28T04:42:48+08:00",
-  "finished_at": "2026-08-28T04:43:34+08:00",
+  "started_at": "2026-08-28T06:19:21+08:00",
+  "finished_at": "2026-08-28T06:19:59+08:00",
   "status": "SUCCESS",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-08-28T04:42:48+08:00",
-      "finished_at": "2026-08-28T04:42:48+08:00",
+      "started_at": "2026-08-28T06:19:21+08:00",
+      "finished_at": "2026-08-28T06:19:21+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
@@ -19,10 +19,11 @@
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-28T04:42:48+08:00",
-      "finished_at": "2026-08-28T04:42:51+08:00",
+      "started_at": "2026-08-28T06:19:21+08:00",
+      "finished_at": "2026-08-28T06:19:26+08:00",
       "return_code": 0,
       "log_tail": [
+        "[RETRY] 2026-08-28 crawl log 為 SUCCESS，但 daily_prices 不存在；視為 stale SUCCESS，重新抓取",
         "[DEBUG] 2026-08-28 step 1: start_crawl_log",
         "[DEBUG] 2026-08-28 step 1 OK",
         "[DEBUG] 2026-08-28 step 2: HTTP GET",
@@ -41,18 +42,19 @@
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-28T04:42:51+08:00",
-      "finished_at": "2026-08-28T04:42:53+08:00",
+      "started_at": "2026-08-28T06:19:26+08:00",
+      "finished_at": "2026-08-28T06:19:28+08:00",
       "return_code": 0,
       "log_tail": [
+        "[RETRY] 2026-08-28 crawl log 為 SUCCESS，但 daily_prices 不存在；視為 stale SUCCESS，重新抓取",
         "[OK] TPEx price 2026-08-28: 0 rows"
       ]
     },
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-28T04:42:53+08:00",
-      "finished_at": "2026-08-28T04:42:53+08:00",
+      "started_at": "2026-08-28T06:19:28+08:00",
+      "finished_at": "2026-08-28T06:19:28+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-28 TWSE 無 daily price，視為非交易日/無行情日"
@@ -61,8 +63,8 @@
     {
       "name": "foreign_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-28T04:42:53+08:00",
-      "finished_at": "2026-08-28T04:42:53+08:00",
+      "started_at": "2026-08-28T06:19:28+08:00",
+      "finished_at": "2026-08-28T06:19:28+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-28 TPEx 無 daily price，視為非交易日/無行情日"
@@ -71,37 +73,26 @@
     {
       "name": "tdcc_latest",
       "status": "SUCCESS",
-      "started_at": "2026-08-28T04:42:53+08:00",
-      "finished_at": "2026-08-28T04:42:56+08:00",
+      "started_at": "2026-08-28T06:19:28+08:00",
+      "finished_at": "2026-08-28T06:19:28+08:00",
       "return_code": 0,
       "log_tail": [
         "========================================================================",
         "TDCC Market Latest Sync",
         "========================================================================",
         "[INFO] request_key = TDCC_SHAREHOLDING_LATEST:2026-08-28",
-        "[INFO] 讀取 active TWSE + TPEx 股票主檔...",
-        "[INFO] active 4-digit stocks = 1979",
-        "[INFO] 抓取 TDCC Open Data 1-5...",
-        "[INFO] raw rows = 68578",
-        "[INFO] data_date = 2026-08-21",
-        "[INFO] normalized active-stock rows = 1978",
-        "[INFO] 保存 Raw...",
-        "[INFO] 寫入 tdcc_holdings...",
-        "",
-        "[OK] TDCC Market Latest",
-        "[OK] data_date = 2026-08-21",
-        "[OK] record_count = 1978"
+        "[SKIP] 今日已有 SUCCESS"
       ]
     },
     {
       "name": "ranking_snapshot",
       "status": "SUCCESS",
-      "started_at": "2026-08-28T04:42:56+08:00",
-      "finished_at": "2026-08-28T04:43:34+08:00",
+      "started_at": "2026-08-28T06:19:28+08:00",
+      "finished_at": "2026-08-28T06:19:59+08:00",
       "return_code": 0,
       "log_tail": [
         "  \"reference_date\": \"2026-08-26\",",
-        "  \"generated_at\": \"2026-08-28T04:43:34+08:00\",",
+        "  \"generated_at\": \"2026-08-28T06:19:59+08:00\",",
         "  \"active_stocks\": 1979,",
         "  \"active_twse\": 1089,",
         "  \"active_tpex\": 890,",
