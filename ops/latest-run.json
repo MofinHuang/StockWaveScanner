@@ -1,14 +1,14 @@
 {
   "requested_date": "2026-08-29",
-  "started_at": "2026-08-29T05:13:36+08:00",
-  "finished_at": "2026-08-29T05:14:18+08:00",
+  "started_at": "2026-08-29T06:34:52+08:00",
+  "finished_at": "2026-08-29T06:35:29+08:00",
   "status": "SUCCESS",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-08-29T05:13:36+08:00",
-      "finished_at": "2026-08-29T05:13:37+08:00",
+      "started_at": "2026-08-29T06:34:52+08:00",
+      "finished_at": "2026-08-29T06:34:52+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
@@ -19,8 +19,8 @@
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-29T05:13:37+08:00",
-      "finished_at": "2026-08-29T05:13:37+08:00",
+      "started_at": "2026-08-29T06:34:52+08:00",
+      "finished_at": "2026-08-29T06:34:53+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-29 為週末"
@@ -29,8 +29,8 @@
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-29T05:13:37+08:00",
-      "finished_at": "2026-08-29T05:13:37+08:00",
+      "started_at": "2026-08-29T06:34:53+08:00",
+      "finished_at": "2026-08-29T06:34:53+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-29 為週末"
@@ -39,8 +39,8 @@
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-08-29T05:13:37+08:00",
-      "finished_at": "2026-08-29T05:13:37+08:00",
+      "started_at": "2026-08-29T06:34:53+08:00",
+      "finished_at": "2026-08-29T06:34:53+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-29 為週末"
@@ -49,8 +49,8 @@
     {
       "name": "foreign_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-08-29T05:13:37+08:00",
-      "finished_at": "2026-08-29T05:13:37+08:00",
+      "started_at": "2026-08-29T06:34:53+08:00",
+      "finished_at": "2026-08-29T06:34:53+08:00",
       "return_code": 0,
       "log_tail": [
         "[SKIP] 2026-08-29 TPEx 無 daily price，視為非交易日/無行情日"
@@ -59,37 +59,26 @@
     {
       "name": "tdcc_latest",
       "status": "SUCCESS",
-      "started_at": "2026-08-29T05:13:37+08:00",
-      "finished_at": "2026-08-29T05:13:42+08:00",
+      "started_at": "2026-08-29T06:34:53+08:00",
+      "finished_at": "2026-08-29T06:34:53+08:00",
       "return_code": 0,
       "log_tail": [
         "========================================================================",
         "TDCC Market Latest Sync",
         "========================================================================",
         "[INFO] request_key = TDCC_SHAREHOLDING_LATEST:2026-08-29",
-        "[INFO] 讀取 active TWSE + TPEx 股票主檔...",
-        "[INFO] active 4-digit stocks = 1979",
-        "[INFO] 抓取 TDCC Open Data 1-5...",
-        "[INFO] raw rows = 68578",
-        "[INFO] data_date = 2026-08-21",
-        "[INFO] normalized active-stock rows = 1978",
-        "[INFO] 保存 Raw...",
-        "[INFO] 寫入 tdcc_holdings...",
-        "",
-        "[OK] TDCC Market Latest",
-        "[OK] data_date = 2026-08-21",
-        "[OK] record_count = 1978"
+        "[SKIP] 今日已有 SUCCESS"
       ]
     },
     {
       "name": "ranking_snapshot",
       "status": "SUCCESS",
-      "started_at": "2026-08-29T05:13:42+08:00",
-      "finished_at": "2026-08-29T05:14:18+08:00",
+      "started_at": "2026-08-29T06:34:53+08:00",
+      "finished_at": "2026-08-29T06:35:29+08:00",
       "return_code": 0,
       "log_tail": [
         "  \"reference_date\": \"2026-08-27\",",
-        "  \"generated_at\": \"2026-08-29T05:14:18+08:00\",",
+        "  \"generated_at\": \"2026-08-29T06:35:29+08:00\",",
         "  \"active_stocks\": 1979,",
         "  \"active_twse\": 1089,",
         "  \"active_tpex\": 890,",
