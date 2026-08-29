@@ -1,7 +1,7 @@
 {
-  "requested_date": "2026-08-29",
-  "reference_date": "2026-08-27",
-  "generated_at": "2026-08-29T06:35:29+08:00",
+  "requested_date": "2026-08-28",
+  "reference_date": "2026-08-28",
+  "generated_at": "2026-08-29T08:25:25+08:00",
   "active_stocks": 1979,
   "active_twse": 1089,
   "active_tpex": 890,
@@ -11,17 +11,17 @@
   "ranking_ready": 1965,
   "tpex_recent_foreign_success_days": 20,
   "ranking_rows": 1965,
-  "sleep_pass": 827,
+  "sleep_pass": 820,
   "foreign_pass": 28,
   "tdcc_pass": 88,
   "chip_pass": 3,
-  "breakout_pass": 59,
+  "breakout_pass": 44,
   "final_pass": 0,
   "latest_dates": {
-    "twse_price": "2026-08-27",
-    "tpex_price": "2026-08-27",
-    "twse_foreign": "2026-08-27",
-    "tpex_foreign": "2026-08-27",
+    "twse_price": "2026-08-28",
+    "tpex_price": "2026-08-28",
+    "twse_foreign": "2026-08-28",
+    "tpex_foreign": "2026-08-28",
     "tdcc": "2026-08-21"
   }
 }
