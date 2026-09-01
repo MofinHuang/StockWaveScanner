@@ -1,14 +1,14 @@
 {
   "requested_date": "2026-09-01",
-  "started_at": "2026-09-01T03:13:31+08:00",
-  "finished_at": "2026-09-01T03:14:08+08:00",
+  "started_at": "2026-09-01T22:20:24+08:00",
+  "finished_at": "2026-09-01T22:21:07+08:00",
   "status": "SUCCESS",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T03:13:31+08:00",
-      "finished_at": "2026-09-01T03:13:32+08:00",
+      "started_at": "2026-09-01T22:20:24+08:00",
+      "finished_at": "2026-09-01T22:20:24+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
@@ -19,8 +19,8 @@
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T03:13:32+08:00",
-      "finished_at": "2026-09-01T03:13:37+08:00",
+      "started_at": "2026-09-01T22:20:24+08:00",
+      "finished_at": "2026-09-01T22:20:32+08:00",
       "return_code": 0,
       "log_tail": [
         "[RETRY] 2026-09-01 crawl log 為 SUCCESS，但 daily_prices 不存在；視為 stale SUCCESS，重新抓取",
@@ -31,50 +31,56 @@
         "[DEBUG] 2026-09-01 step 3: save_raw_response",
         "[DEBUG] 2026-09-01 step 3 OK",
         "[DEBUG] 2026-09-01 step 4: parse_market_daily",
-        "[DEBUG] 2026-09-01 step 4 OK rows=0",
+        "[DEBUG] 2026-09-01 step 4 OK rows=1,089",
         "[DEBUG] 2026-09-01 step 5: upsert_daily_prices",
-        "[DEBUG] 2026-09-01 step 5 OK rows=0",
+        "[DEBUG] 2026-09-01 step 5 OK rows=1,089",
         "[DEBUG] 2026-09-01 step 6: finish_crawl_success",
         "[DEBUG] 2026-09-01 step 6 OK",
-        "[OK] TWSE price 2026-09-01: 0 rows"
+        "[OK] TWSE price 2026-09-01: 1,089 rows"
       ]
     },
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T03:13:37+08:00",
-      "finished_at": "2026-09-01T03:13:38+08:00",
+      "started_at": "2026-09-01T22:20:32+08:00",
+      "finished_at": "2026-09-01T22:20:36+08:00",
       "return_code": 0,
       "log_tail": [
         "[RETRY] 2026-09-01 crawl log 為 SUCCESS，但 daily_prices 不存在；視為 stale SUCCESS，重新抓取",
-        "[OK] TPEx price 2026-09-01: 0 rows"
+        "[OK] TPEx price 2026-09-01: 865 rows"
       ]
     },
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T03:13:38+08:00",
-      "finished_at": "2026-09-01T03:13:38+08:00",
+      "started_at": "2026-09-01T22:20:36+08:00",
+      "finished_at": "2026-09-01T22:20:38+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-09-01 TWSE 無 daily price，視為非交易日/無行情日"
+        "[OK] TWSE foreign 2026-09-01: 1,080 rows"
       ]
     },
     {
       "name": "foreign_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T03:13:38+08:00",
-      "finished_at": "2026-09-01T03:13:39+08:00",
+      "started_at": "2026-09-01T22:20:38+08:00",
+      "finished_at": "2026-09-01T22:20:39+08:00",
       "return_code": 0,
       "log_tail": [
-        "[SKIP] 2026-09-01 TPEx 無 daily price，視為非交易日/無行情日"
+        "[INFO] TPEx Foreign trade_date=2026-09-01",
+        "[INFO] 抓取 TPEx qfiiStat buy / sell...",
+        "[INFO] 保存 raw response...",
+        "[INFO] normalized records = 734",
+        "[INFO] 寫入 institutional_trades...",
+        "[OK] TPEx Foreign 2026-09-01",
+        "[OK] record_count = 734"
       ]
     },
     {
       "name": "tdcc_latest",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T03:13:39+08:00",
-      "finished_at": "2026-09-01T03:13:39+08:00",
+      "started_at": "2026-09-01T22:20:39+08:00",
+      "finished_at": "2026-09-01T22:20:39+08:00",
       "return_code": 0,
       "log_tail": [
         "========================================================================",
@@ -87,32 +93,32 @@
     {
       "name": "ranking_snapshot",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T03:13:39+08:00",
-      "finished_at": "2026-09-01T03:14:08+08:00",
+      "started_at": "2026-09-01T22:20:39+08:00",
+      "finished_at": "2026-09-01T22:21:07+08:00",
       "return_code": 0,
       "log_tail": [
-        "  \"reference_date\": \"2026-08-28\",",
-        "  \"generated_at\": \"2026-09-01T03:14:08+08:00\",",
+        "  \"reference_date\": \"2026-09-01\",",
+        "  \"generated_at\": \"2026-09-01T22:21:07+08:00\",",
         "  \"active_stocks\": 1979,",
         "  \"active_twse\": 1089,",
         "  \"active_tpex\": 890,",
-        "  \"price_ready\": 1966,",
+        "  \"price_ready\": 1967,",
         "  \"foreign_ready\": 1977,",
         "  \"tdcc_ready\": 1979,",
-        "  \"ranking_ready\": 1965,",
+        "  \"ranking_ready\": 1966,",
         "  \"tpex_recent_foreign_success_days\": 20,",
-        "  \"ranking_rows\": 1965,",
-        "  \"sleep_pass\": 820,",
-        "  \"foreign_pass\": 28,",
+        "  \"ranking_rows\": 1966,",
+        "  \"sleep_pass\": 761,",
+        "  \"foreign_pass\": 27,",
         "  \"tdcc_pass\": 104,",
-        "  \"chip_pass\": 1,",
-        "  \"breakout_pass\": 44,",
+        "  \"chip_pass\": 5,",
+        "  \"breakout_pass\": 57,",
         "  \"final_pass\": 0,",
         "  \"latest_dates\": {",
-        "    \"twse_price\": \"2026-08-28\",",
-        "    \"tpex_price\": \"2026-08-28\",",
-        "    \"twse_foreign\": \"2026-08-28\",",
-        "    \"tpex_foreign\": \"2026-08-28\",",
+        "    \"twse_price\": \"2026-09-01\",",
+        "    \"tpex_price\": \"2026-09-01\",",
+        "    \"twse_foreign\": \"2026-09-01\",",
+        "    \"tpex_foreign\": \"2026-09-01\",",
         "    \"tdcc\": \"2026-08-28\"",
         "  }",
         "}"
