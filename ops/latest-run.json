@@ -1,86 +1,66 @@
 {
   "requested_date": "2026-09-01",
-  "started_at": "2026-09-01T22:20:24+08:00",
-  "finished_at": "2026-09-01T22:21:07+08:00",
+  "started_at": "2026-09-01T23:07:42+08:00",
+  "finished_at": "2026-09-01T23:08:24+08:00",
   "status": "SUCCESS",
   "steps": [
     {
       "name": "validate_db",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T22:20:24+08:00",
-      "finished_at": "2026-09-01T22:20:24+08:00",
+      "started_at": "2026-09-01T23:07:42+08:00",
+      "finished_at": "2026-09-01T23:07:42+08:00",
       "return_code": 0,
       "log_tail": [
         "[OK] database=/home/runner/work/StockWaveScanner/StockWaveScanner/data/stocks.db",
         "[OK] active_stocks=1979",
-        "[OK] latest_price_on_or_before_2026-09-01=2026-08-28"
+        "[OK] latest_price_on_or_before_2026-09-01=2026-09-01"
       ]
     },
     {
       "name": "price_twse",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T22:20:24+08:00",
-      "finished_at": "2026-09-01T22:20:32+08:00",
+      "started_at": "2026-09-01T23:07:42+08:00",
+      "finished_at": "2026-09-01T23:07:42+08:00",
       "return_code": 0,
       "log_tail": [
-        "[RETRY] 2026-09-01 crawl log 為 SUCCESS，但 daily_prices 不存在；視為 stale SUCCESS，重新抓取",
-        "[DEBUG] 2026-09-01 step 1: start_crawl_log",
-        "[DEBUG] 2026-09-01 step 1 OK",
-        "[DEBUG] 2026-09-01 step 2: HTTP GET",
-        "[DEBUG] 2026-09-01 step 2 OK",
-        "[DEBUG] 2026-09-01 step 3: save_raw_response",
-        "[DEBUG] 2026-09-01 step 3 OK",
-        "[DEBUG] 2026-09-01 step 4: parse_market_daily",
-        "[DEBUG] 2026-09-01 step 4 OK rows=1,089",
-        "[DEBUG] 2026-09-01 step 5: upsert_daily_prices",
-        "[DEBUG] 2026-09-01 step 5 OK rows=1,089",
-        "[DEBUG] 2026-09-01 step 6: finish_crawl_success",
-        "[DEBUG] 2026-09-01 step 6 OK",
-        "[OK] TWSE price 2026-09-01: 1,089 rows"
+        "[SKIP] 2026-09-01 已有 SUCCESS 且 daily_prices 已存在"
       ]
     },
     {
       "name": "price_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T22:20:32+08:00",
-      "finished_at": "2026-09-01T22:20:36+08:00",
+      "started_at": "2026-09-01T23:07:42+08:00",
+      "finished_at": "2026-09-01T23:07:42+08:00",
       "return_code": 0,
       "log_tail": [
-        "[RETRY] 2026-09-01 crawl log 為 SUCCESS，但 daily_prices 不存在；視為 stale SUCCESS，重新抓取",
-        "[OK] TPEx price 2026-09-01: 865 rows"
+        "[SKIP] 2026-09-01 已有 SUCCESS 且 daily_prices 已存在"
       ]
     },
     {
       "name": "foreign_twse",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T22:20:36+08:00",
-      "finished_at": "2026-09-01T22:20:38+08:00",
+      "started_at": "2026-09-01T23:07:42+08:00",
+      "finished_at": "2026-09-01T23:07:43+08:00",
       "return_code": 0,
       "log_tail": [
-        "[OK] TWSE foreign 2026-09-01: 1,080 rows"
+        "[SKIP] 2026-09-01 已有 SUCCESS 且 institutional_trades 已存在"
       ]
     },
     {
       "name": "foreign_tpex",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T22:20:38+08:00",
-      "finished_at": "2026-09-01T22:20:39+08:00",
+      "started_at": "2026-09-01T23:07:43+08:00",
+      "finished_at": "2026-09-01T23:07:43+08:00",
       "return_code": 0,
       "log_tail": [
-        "[INFO] TPEx Foreign trade_date=2026-09-01",
-        "[INFO] 抓取 TPEx qfiiStat buy / sell...",
-        "[INFO] 保存 raw response...",
-        "[INFO] normalized records = 734",
-        "[INFO] 寫入 institutional_trades...",
-        "[OK] TPEx Foreign 2026-09-01",
-        "[OK] record_count = 734"
+        "[SKIP] 2026-09-01 已有 SUCCESS 且 institutional_trades 已存在"
       ]
     },
     {
       "name": "tdcc_latest",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T22:20:39+08:00",
-      "finished_at": "2026-09-01T22:20:39+08:00",
+      "started_at": "2026-09-01T23:07:43+08:00",
+      "finished_at": "2026-09-01T23:07:43+08:00",
       "return_code": 0,
       "log_tail": [
         "========================================================================",
@@ -93,12 +73,12 @@
     {
       "name": "ranking_snapshot",
       "status": "SUCCESS",
-      "started_at": "2026-09-01T22:20:39+08:00",
-      "finished_at": "2026-09-01T22:21:07+08:00",
+      "started_at": "2026-09-01T23:07:43+08:00",
+      "finished_at": "2026-09-01T23:08:24+08:00",
       "return_code": 0,
       "log_tail": [
         "  \"reference_date\": \"2026-09-01\",",
-        "  \"generated_at\": \"2026-09-01T22:21:07+08:00\",",
+        "  \"generated_at\": \"2026-09-01T23:08:24+08:00\",",
         "  \"active_stocks\": 1979,",
         "  \"active_twse\": 1089,",
         "  \"active_tpex\": 890,",
