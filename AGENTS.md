@@ -486,111 +486,100 @@ Crawler 可直接重用。
 
 # 10. Price Backfill Phase 1
 
-目前第一階段計畫：
+目前第一階段：
 
-```text
 2026-05
 2026-06
-```
 
 Active stocks × 2 months：
 
-```text
 Units = 3958
-```
 
 開始前：
 
-```text
 Already SUCCESS = 4
 Need download   = 3954
-```
 
 2026-09-11 早上曾開始 TWSE：
 
-```powershell
 python scripts/backfill_market_prices.py `
   --start 2026-05 `
   --end 2026-06 `
   --market TWSE `
   --sleep 0.15
-```
 
-因接近台股開盤，開始大量 ERROR。
-
-使用者已手動 Ctrl+C。
+執行接近台股 09:00 開盤時間後開始大量 ERROR，因此使用者已手動 Ctrl+C。
 
 停止時：
 
-```text
 Units    : 2178
 Processed: 325
 SUCCESS  : 58
 SKIP     : 1
 NO_DATA  : 0
 ERROR    : 265
-```
 
-不要重新從頭開始。
+目前工作判斷：
 
-SUCCESS 會由 crawl log 自動 SKIP。
+大量 ERROR 很可能與接近台股開盤時間、官方 TWSE 資料來源當時不穩定或限制有關。
 
----
+目前不優先追查這 265 筆 ERROR，也不要因此修改 crawler。
+
+若未來在收盤後或非盤前／盤中時段仍持續出現大量 ERROR，再重新調查 error_message。
+
+已 SUCCESS 的 request_key 已保存在 crawl_logs，後續重新執行會自動 SKIP，不必重新抓。
 
 # 11. NEXT SESSION — START HERE
 
 下次 GPT 接手後：
 
-不要先跑 backfill。
+不要重新做 Git recovery。
 
-不要先跑 backtest。
+不要重新檢查 Bullish V2 檔案是否遺失。
 
-不要再檢查 Git recovery。
+不要重新跑已完成的 TDCC historical backfill。
 
-第一個動作：
+不要優先調查 2026-09-11 早上產生的 265 個 TWSE Price ERROR。
 
-查最近 TWSE Price backfill ERROR 原因。
+第一個工作：
 
-執行：
+在適合抓資料的非盤前／盤中時段，繼續 TWSE historical Price backfill：
 
-```powershell
-python -c 'from db.database import get_connection; c=get_connection(); rows=c.execute("SELECT request_key, error_message, finished_at FROM crawl_logs WHERE source=? AND status=? ORDER BY finished_at DESC LIMIT 10", ("TWSE_STOCK_DAY","ERROR")).fetchall(); [print(tuple(r)) for r in rows]; c.close()'
-```
-
-使用者貼出結果後再判斷。
-
-若確認只是盤前／盤中官方 API 不穩：
-
-不要改 crawler。
-
-改成收盤後續跑：
-
-```powershell
 python scripts/backfill_market_prices.py `
   --start 2026-05 `
   --end 2026-06 `
   --market TWSE `
   --sleep 0.15
-```
 
-已 SUCCESS 的 request_key 會自動 SKIP。
+已 SUCCESS 的 request_key 會自動：
 
-TWSE 完成後，再跑 TPEx。
+SKIP SUCCESS
 
-Price backfill 完成後：
+所以可以安全續跑。
 
-重新檢查：
+TWSE 完成後，再跑 TPEx：
 
-```text
+python scripts/backfill_market_prices.py `
+  --start 2026-05 `
+  --end 2026-06 `
+  --market TPEx `
+  --sleep 0.15
+
+Price historical backfill 完成後，再檢查：
+
 2026-07-17
-Price >=30 days
-```
+Price >= 30 days
 
-確認 coverage 明顯提高後，才重新跑：
+目前舊結果：
 
-```text
-Trade Plan V2 historical backtest
-```
+Price >=30 days : 5
+TDCC >=4 dates  : 1979
+
+完成 Price backfill 後，Price >=30 days 應明顯增加。
+
+確認 historical coverage 足夠後，才重新執行：
+
+scripts/backtest_trade_plan_v2.py
 
 ---
 
@@ -1492,27 +1481,25 @@ EXTENDED
 
 目前不要先做 UI。
 
-正確順序：
+後續順序：
 
-```text
-1. 查 Price backfill ERROR 原因
+1. 收盤後／非盤前盤中時段續跑 TWSE Price historical backfill
 
-2. 完成 Price historical backfill
+2. 完成 TPEx Price historical backfill
 
-3. 確認 historical coverage
+3. 確認 historical Price coverage
 
-4. 跑 Bullish V2 + Trade Plan V2 backtest
+4. 跑 Bullish V2 + Trade Plan V2 historical backtest
 
 5. 分析哪種 Stage / Score 真正有效
 
 6. 調整 TOP10 ranking
 
-7. 確認 Buy / Risk / Target 模型
+7. 驗證 Buy Zone / Risk / Target 模型
 
-8. 才開始做 GitHub Pages V2 UI
-```
+8. 最後製作 GitHub Pages Mobile V2 UI
 
-不要跳過 backtest 直接做漂亮介面。
+不要跳過 historical backtest 直接修改 production ranking。
 
 ---
 
@@ -1591,27 +1578,36 @@ Risk / Reward 參考
 
 # 32. Most Important Next Action
 
-下一次回來詢問 GPT 時：
+下一次回來詢問 GPT 時，不需要再復原昨日程式，也不需要先查 2026-09-11 早上的 Price ERROR。
 
-直接從下面這個動作開始。
+若目前時間適合進行歷史資料抓取，直接續跑：
 
-```powershell
-python -c 'from db.database import get_connection; c=get_connection(); rows=c.execute("SELECT request_key, error_message, finished_at FROM crawl_logs WHERE source=? AND status=? ORDER BY finished_at DESC LIMIT 10", ("TWSE_STOCK_DAY","ERROR")).fetchall(); [print(tuple(r)) for r in rows]; c.close()'
-```
+python scripts/backfill_market_prices.py `
+  --start 2026-05 `
+  --end 2026-06 `
+  --market TWSE `
+  --sleep 0.15
 
 目的：
 
-```text
-確認今天早上 Price historical backfill
-265 個 ERROR 的真正原因。
-```
+完成全市場歷史股價 coverage，
+讓 Bullish V2 / Trade Plan V2
+可以進行有效 historical backtest。
 
-在看到 ERROR 內容以前：
+已 SUCCESS 的股票／月份會自動 SKIP。
 
-不要修改 crawler。
+若再次於非盤前／盤中時段大量出現 ERROR：
 
-不要重新跑大量 backfill。
+停止 backfill，
 
-不要重新跑 historical backtest。
+再檢查 crawl_logs error_message，
 
-不要重新處理 Git recovery。
+不要讓使用者自行猜錯誤原因。
+
+目前不要：
+
+重新抓 TDCC historical
+重新做 Git recovery
+恢復 scripts/debug_*.py
+直接修改 production Sleep / Chip / Breakout
+直接製作新版 UI
