@@ -1,644 +1,1617 @@
-# AGENTS.md
+# StockWaveScanner - Current Handoff / V2 Direction
 
-## Project
-StockWaveScanner
+## 1. 重要：下次開始時不要重新研究目前進度
 
-## Purpose
-台股全市場掃描器。
+GPT 在下一次對話開始後，應優先閱讀本段。
 
-目前策略主體：
+不要重新詢問使用者「昨天做到哪裡」。
 
-- Sleep /30
-- Chip /40
-  - Foreign /20
-  - TDCC /20
-- Breakout /30
-- Total /100
+不要重新做已完成的檔案復原。
 
-目前最終 PASS 邏輯仍是：
+不要直接重新跑 TDCC historical backfill。
 
-- Sleep PASS
-- Chip PASS
-- Breakout PASS
+不要直接重新跑 Price historical backfill。
 
-三關全部 PASS 才為最終 PASS。
+不要執行：
 
-但目前研究結果顯示：
-Sleep 與 Breakout 在「同一交易日」高度互斥，
-未來可能改成時序型策略，不要直接在未驗證前修改 production 規則。
+```powershell
+git reset --hard
+```
 
----
+除非已先確認目前未 commit 的檔案全部有安全備份。
 
-# Current Data Coverage
+絕對不要使用：
 
-目前 active stocks：
-
-- Total: 1979
-- TWSE: 1089
-- TPEx: 890
-
-2026-08-14 coverage：
-
-- Price >= 30 days: 1951 / 1979
-- Foreign ready: 1977 / 1979
-- TDCC >= 4 dates: 1979 / 1979
-- Ranking ready: 1950 / 1979
-
-TDCC coverage 已完成：
-
-- 1974 stocks 有 4 dates
-- 5 stocks 有 5 dates
-- TDCC < 4 = 0
+```powershell
+git push --force
+```
 
 ---
 
-# TPEx Foreign
+# 2. 2026-09-11 Current Recovery Status
 
-## Official source
+昨日開發的新功能曾因 Git main 與 origin/main divergence，在同步 GitHub 過程中暫時從 main 工作目錄消失。
 
-TPEx qfiiStat。
+已建立本機安全 branch：
 
-欄位：
+```text
+backup-before-sync-20260911
+```
 
-- row[1] stock_id
-- row[2] stock_name
-- row[3] foreign_buy
-- row[4] foreign_sell
-- row[5] foreign_net
+昨日程式並未遺失。
 
-官方單位為「張」。
+目前已從該 backup branch 恢復：
 
-DB normalization：
+```text
+scripts/backtest_trade_plan_v2.py
+strategy/bullish_v2.py
+strategy/trade_plan_v2.py
+strategy/foreign_data.py
+```
 
-- foreign_buy = lot * 1000
-- foreign_sell = lot * 1000
-- foreign_net = official net lot * 1000
+其中：
 
-注意：
+```text
+strategy/scanner.py
+```
 
-foreign_net 必須使用官方欄位，
-不要自行用 foreign_buy - foreign_sell 重算。
+原本就是空檔，已確認應刪除。
+
+`scripts/debug_*.py` 為使用者刻意瘦身刪除的研究／debug 檔案，不要恢復。
+
+目前以下檔案已通過 Python syntax / import 測試：
+
+```text
+strategy/foreign_data.py
+strategy/bullish_v2.py
+strategy/trade_plan_v2.py
+scripts/backtest_trade_plan_v2.py
+```
+
+Import test：
+
+```text
+IMPORT OK
+```
 
 ---
 
-## qfiiStat buy/sell semantics
+# 3. Bullish V2 Current Status
 
-2026-08-14 已驗證：
+`strategy/bullish_v2.py` 已建立。
 
-searchType=buy：
+主要入口：
 
-- positive net
-- 包含少量 zero net
+```python
+evaluate_bullish_v2(...)
+```
 
-searchType=sell：
+目前 research score：
 
-- negative net
-- 包含少量 zero net
+```text
+Trend       /25
+Setup       /20
+Momentum    /20
+Foreign     /15
+TDCC        /20
+----------------
+Total       /100
+```
 
-buy ∪ sell 可完整涵蓋 positive / negative net 股票。
+這是 research model。
 
-若 active stock 有 daily price，
-但當日 qfiiStat crawl 已 SUCCESS 且股票沒有 institutional row：
+不要直接修改既有 production：
 
-可推論：
+```text
+Sleep / Chip / Breakout v1
+```
 
+Bullish V2 的目的是取代「三關全部 PASS 才推薦」這種過度僵硬的思考方式，建立真正適合選股排名的 Opportunity Score。
+
+---
+
+# 4. Trade Plan V2 Current Status
+
+`strategy/trade_plan_v2.py` 已建立。
+
+主要入口：
+
+```python
+evaluate_trade_plan_v2(...)
+```
+
+目前可輸出：
+
+```text
+latest_close
+
+buy_zone_low
+buy_zone_high
+
+risk_price
+
+target_zone_low
+target_zone_high
+
+entry_status
+
+action
+
+candidate_eligible
+```
+
+設計原則：
+
+* 不修改 DB
+* 不使用 date.today()
+* 使用 reference_date
+* target zone 是 Risk / Reward 模型參考
+* target zone 不是價格預測
+* EXTENDED 股票即使很強，也不可直接視為適合追價
+
+目前 Trade Plan Config 已包含：
+
+```text
+ATR period
+recent low window
+不同 stage 的 entry zone
+risk ATR buffer
+minimum risk %
+maximum candidate risk %
+1.5R target
+2.5R target
+```
+
+---
+
+# 5. Foreign V2 Research
+
+`strategy/foreign_data.py` 已恢復昨日修改。
+
+TPEx：
+
+```text
+STORED
+ZERO_INFERRED
+INSUFFICIENT_DATA
+```
+
+規則維持：
+
+有 official institutional row：
+
+```text
+STORED
+```
+
+沒有 row，但股票當日有 daily_price，且 qfiiStat crawl SUCCESS：
+
+```text
 foreign_net = 0
+ZERO_INFERRED
+```
 
-但不能推論：
+不能製造假的：
 
-- foreign_buy
-- foreign_sell
+```text
+foreign_buy = 0
+foreign_sell = 0
+```
 
-因此 effective Foreign 狀態：
+TWSE Bullish V2 research 新增：
 
-- STORED
-- ZERO_INFERRED
-- INSUFFICIENT_DATA
+```python
+allow_twse_zero_inferred=True
+```
 
-ZERO_INFERRED 只能補 foreign_net=0，
-buy/sell 必須保持 unknown。
+只有 Bullish V2 research 使用。
 
----
+Production 預設仍：
 
-# TPEx Effective Foreign Weekly Logic
+```python
+allow_twse_zero_inferred=False
+```
 
-strategy/foreign.py 目前有 effective builder。
+TWSE research 已驗證：
 
-重要規則：
+```text
+89 組 T86 missing stock/date
+89 組在官方 TWT38U 同樣 absent
 
-使用「該股票自己的 daily_prices 日期」
-作為需要 Foreign coverage 的交易日集合。
+parser dropped = 0
+normalized DB write missing = 0
+```
 
-不要使用整個市場 calendar 強迫每檔股票
-每個市場交易日都有 Foreign row。
+因此 Bullish V2 research 可在：
 
-原因：
+```text
+daily_price 存在
++
+TWSE_T86_MARKET crawl SUCCESS
++
+institutional row missing
+```
 
-個股可能有：
+時推論：
 
-- 停牌
-- 暫停交易
-- 個別無行情日
+```text
+foreign_net = 0
+ZERO_INFERRED
+```
 
-因此：
-
-股票有 daily_price
-+ qfiiStat SUCCESS
-+ institutional row missing
-→ ZERO_INFERRED
-
-股票有 daily_price
-+ qfiiStat 沒有 SUCCESS 證據
-→ INSUFFICIENT_DATA
-
-股票本身沒有 daily_price
-→ 不視為 Foreign 缺資料日
-
-最近修正後：
-
-Foreign INSUFFICIENT_DATA 已從 99 檔降到 0
-（在 Ranking prefilter 後）。
+但不能推論 buy / sell。
 
 ---
 
-# TDCC
+# 6. TDCC Historical Current Status
 
-## Latest market data
+TDCC historical backfill 已完成。
 
-官方 Open Data：
+最後結果：
 
-https://openapi.tdcc.com.tw/v1/opendata/1-5
+```text
+Units    : 23748
+SUCCESS  : 15820
+SKIP     : 7924
+NO_DATA  : 4
+ERROR    : 0
+```
 
-最新資料一次可抓全市場。
+DB 現況：
 
-2026-08-14 實測：
+```text
+TDCC date range:
+2026-06-12 ~ 2026-08-28
 
-- rows = 68476
-- securities = 4028
-- 4-digit ids = 2961
-- levels = 1 ~ 17
-- single data_date = 20260814
+Distinct TDCC dates:
+12
 
-正式寫入前：
+Rows:
+23744
+```
 
-只與 stocks active TWSE/TPEx 主檔做 intersection。
+日期包括：
 
-不要只靠「4 碼數字」判定普通股。
+```text
+2026-06-12
+2026-06-18
+2026-06-26
+2026-07-03
+2026-07-09
+2026-07-17
+2026-07-24
+2026-07-31
+2026-08-07
+2026-08-14
+2026-08-21
+2026-08-28
+```
 
----
+不要重新抓已完成的 TDCC history。
 
-## TDCC strategy fields
+應依：
 
-使用：
+```text
+crawl_logs SUCCESS
+```
 
-- level 1
-- level 2
-- level 15
-
-定義：
-
-retail_holder_pct
-= level 1 + level 2
-
-large_holder_pct
-= level 15
-
----
-
-## TDCC historical query
-
-歷史頁：
-
-https://www.tdcc.com.tw/portal/zh/smWeb/qryStock
-
-現行查詢流程已驗證：
-
-1. GET /portal/zh/
-   - 建立 JSESSIONID
-
-2. GET /portal/zh/smWeb/qryStock
-   - 取得：
-     - SYNCHRONIZER_TOKEN
-     - SYNCHRONIZER_URI
-     - firDate
-     - scaDate options
-
-3. POST /portal/zh/smWeb/qryStock
-   - method=submit
-   - firDate
-   - scaDate
-   - sqlMethod=StockNo
-   - stockNo
-   - stockName=""
-
-重要：
-
-SYNCHRONIZER_TOKEN 不能安全重複使用。
-
-已實測：
-
-- 第一次 POST 成功
-- 同 token 第二、第三次查詢失敗
-
-因此正式 crawler 必須：
-
-每次 POST 前重新 GET qryStock 取得新 token。
+自動 SKIP。
 
 ---
 
-## TDCC CDN behavior
+# 7. Price Historical Backtest Problem Found
 
-直接 requests GET qryStock
-可能得到：
+Trade Plan V2 historical backtest 已建立：
 
-HTTP status = 200
+```text
+scripts/backtest_trade_plan_v2.py
+```
 
-但 body 其實：
+功能包含：
 
-HTTP 403 Forbidden
+```text
+Historical snapshots
+Bullish V2 evaluation
+Trade Plan evaluation
+T+1 entry simulation
+Buy zone touch
+Fill price
+Risk
+1.5R / 2R / 2.5R
+5D / 10D / 20D return
+MFE
+MAE
+Risk first
+Target first
+Score group
+Stage group
+EXTENDED chase research
+```
 
-Server:
+回測避免 look-ahead：
 
-HiNetCDN
+```text
+T 日收盤產生 signal
+最早 T+1 才可成交
+```
 
-因此不能只依賴 response.raise_for_status()。
+問題已確認不是 Git 資料遺失。
 
-需要 body-level embedded 403 detection。
+目前 daily_prices：
 
-成功方式：
+```text
+first market date : 2025-07-01
+latest market date: 2026-08-14
+distinct dates    : 275
+rows              : 79634
+```
 
-- 先 GET homepage
-- 建立 JSESSIONID
-- 使用 browser-like headers
-- Accept-Encoding 只使用：
-  - gzip
-  - deflate
+Active stocks：
 
-不要送 br，
-除非環境已有 Brotli decoder。
+```text
+1979
+```
 
----
+目前：
 
-# Raw-first principle
+```text
+Price >=30 days:
+1951
+```
 
-所有 crawler 正式寫 normalized DB 前，
-都應先保存 Raw。
+但多數股票最早 Price date：
 
-若 Raw 保存失敗：
+```text
+2026-06-18 : 1947 stocks
+```
 
-停止該同步。
+因此若 reference date 使用：
 
-不要在 Raw-first 原則下跳過 Raw
-直接寫 normalized DB。
+```text
+2026-07-17
+```
 
-crawl log 應支援：
+結果為：
 
-- RUNNING
-- SUCCESS
-- ERROR
+```text
+Price >=30 days : 5
+TDCC >=4 dates  : 1979
+```
 
-歷史回補應細粒度 request_key，
-例如：
+所以 historical backtest 只找到：
 
-TDCC_HISTORY:<stock_id>:<scaDate>
+```text
+candidates       : 5
+eligible signals : 0
+errors           : 0
+```
 
-方便：
+這不是 Bullish V2 bug。
 
-- SUCCESS skip
-- 中斷續跑
-- 單筆 retry
-- 單筆 ERROR 不阻斷其他資料
+真正原因：
 
----
-
-# Ranking Current Status
-
-build_ranking() 目前：
-
-ranking rows = 1950
-
-market：
-
-- TWSE = 1080
-- TPEx = 870
-
-資料完整性：
-
-INSUFFICIENT_DATA AFTER PREFILTER = 0
-
-目前 status：
-
-- FAIL = 1950
-- PASS = 0
-
-這不是資料 coverage bug。
-
-目前為策略交集問題。
-
----
-
-# Current Strategy Pass Distribution
-
-Full market：
-
-Sleep PASS:
-661
-
-Foreign PASS:
-24
-
-TDCC PASS:
-87
-
-Chip PASS:
-2
-
-Breakout PASS:
-30
-
-Final PASS:
-0
-
-Chip PASS stocks：
-
-1. 6423 億而得
-   - Foreign 20
-   - TDCC 20
-   - Chip 40
-   - Sleep FAIL
-   - Breakout FAIL
-
-2. 2371 大同
-   - Foreign 20
-   - TDCC 20
-   - Chip 40
-   - Sleep FAIL
-   - Breakout FAIL
-
-Important intersection result：
-
-- Sleep PASS ∩ Chip PASS = 0
-- Chip PASS ∩ Breakout PASS = 0
-- Sleep PASS ∩ Breakout PASS = 0
-- 2-of-3 main gates PASS = 0
-
-因此不要直接因為 Final PASS=0 就降低分數門檻。
+```text
+Price historical coverage 不足
+```
 
 ---
 
-# Sleep Analyzer v1
+# 8. New Historical Price Backfill
 
-Score:
+2026-09-11 已新增：
 
-A. Price near MA20 = 10
-B. Volatility contraction = 10
-C. Volume contraction = 10
-
-PASS = 30/30
-
-Default rules：
-
-Price:
-
-abs(close - MA20) / MA20 <= 0.05
-
-Volatility:
-
-recent 10-day mean range
-/
-previous 20-day mean range
-<= 0.80
-
-Volume:
-
-recent 10-day mean volume
-/
-previous 20-day mean volume
-<= 0.80
-
----
-
-# Breakout Analyzer v1
-
-Score:
-
-A. Latest close > previous 20-day high = 10
-B. Latest volume / previous 20-day avg >= 1.50 = 10
-C. Close near daily high = 10
-
-PASS = 30/30
-
-Close position rule：
-
-(high - close) / (high - low) <= 0.25
-
----
-
-# Sleep vs Breakout Research
-
-Full market:
-
-Sleep PASS = 661
-Breakout PASS = 30
-Both PASS = 0
-
-Breakout PASS stocks at current day：
-
-Sleep condition counts：
-
-- price near MA20 = 0 / 30
-- volatility contraction = 12 / 30
-- volume contraction = 7 / 30
-
-因此「同日 Sleep + Breakout」高度不合理。
-
-主要原因：
-
-Breakout 發生後價格通常已離開 MA20 ±5% 區域。
-
-但 volume 並不是數學上互斥：
-
-Sleep volume condition PASS = 1092
-Breakout volume condition PASS = 319
-Both volume conditions PASS = 113
-
----
-
-# Historical Sleep Before Breakout
-
-Breakout PASS = 30
-
-曾在 breakout 前 Sleep PASS：
-
-- within 10 trading days = 10 / 30
-- within 20 trading days = 10 / 30
-- within 30 trading days = 10 / 30
-- within 40 trading days = 10 / 30
-
-因此不是 lookback window 長度問題。
-
-10 檔曾 Sleep PASS：
-
-- 9 stocks: last Sleep PASS = T-1
-- 1 stock: T-6
-
-20 / 30 Breakout stocks
-在現有歷史資料中沒有 Sleep PASS。
-
-因此不要直接採：
-
-「最近 30 日曾 Sleep PASS」
-
-作為 Breakout 的硬前置條件。
-
----
-
-# Sleep Condition Snapshots Before Breakout
-
-Breakout PASS 30 stocks：
-
-T-1:
-
-- price = 14 / 30
-- volatility = 15 / 30
-- volume = 16 / 30
-- Sleep PASS = 9 / 30
-
-T-3:
-
-- price = 22 / 30
-- volatility = 4 / 30
-- volume = 12 / 30
-- Sleep PASS = 2 / 30
-
-T-5:
-
-- price = 24 / 30
-- volatility = 3 / 30
-- volume = 15 / 30
-- Sleep PASS = 2 / 30
-
-T-10:
-
-- price = 12 / 30
-- volatility = 1 / 30
-- volume = 16 / 30
-- Sleep PASS = 0 / 30
-
-重要發現：
-
-T-3 / T-5 的主要 blocker 是 volatility contraction。
-
----
-
-# Sleep Volatility Threshold Sensitivity
-
-Tested:
-
-- 0.80
-- 0.85
-- 0.90
-- 0.95
-- 1.00
-- 1.10
-
-Sleep PASS among Breakout stocks：
-
-T-1:
-
-- 0.80 = 9/30
-- 0.85 = 10/30
-- 0.90 = 10/30
-- 0.95 = 11/30
-- 1.00 = 11/30
-- 1.10 = 11/30
-
-T-5:
-
-- 0.80 = 2/30
-- 0.85 = 4/30
-- 0.90 = 5/30
-- 0.95 = 8/30
-- 1.00 = 8/30
-- 1.10 = 10/30
-
-結論：
-
-0.80 對較早期 setup 確實偏嚴，
-但單純放寬 volatility threshold
-無法讓大部分 Breakout 股票變成 Sleep setup。
-
-不要直接修改 production：
-
-volatility_ratio_max = 0.80
-
-目前比較合理的研究方向：
-
-保留 Sleep PASS 的嚴格語意，
-另外研究較寬鬆的 Sleep Setup。
-
----
-
-# Candidate Future Direction
-
-不要立即實作。
-
-下一階段候選：
-
-Sleep Strong:
-
-- original Sleep PASS = 30/30
-
-Sleep Setup:
-
-- 最近 N 日曾 Sleep score >= 20
-- 或其他 setup score 定義
-
-可能的策略模型：
-
-Setup A:
-Sleep / Compression
-→ Chip
-→ Breakout
-
-Setup B:
-Momentum / Continuation
-→ Breakout
-
-不要假設所有 Breakout 都必須由 Sleep setup 產生。
-
----
-
-# Next Recommended Research
-
-下一支 debug：
-
-scripts/debug_sleep_setup_score_before_breakout.py
-
-建議比較：
-
-- previous 1 / 3 / 5 / 10 days
-- ever Sleep score >= 20
-- ever Sleep score = 30
-- Sleep score >= 20 + price near MA20
-- Sleep score >= 20 + volume contraction
+```text
+scripts/backfill_market_prices.py
+```
 
 目的：
 
-判斷 Sleep 應維持硬 PASS，
-還是新增獨立的 setup semantic。
+```text
+TWSE + TPEx 全 active stocks
+historical daily price backfill
+```
+
+不使用舊的：
+
+```python
+has_price_month()
+```
+
+作為完成判斷。
+
+原因：
+
+`has_price_month()` 目前只要該月有一筆 daily_price：
+
+```python
+return count > 0
+```
+
+就會誤判整個月份完成。
+
+新的 backfill 改用：
+
+```text
+crawl_logs
+```
+
+判斷。
+
+只有：
+
+```text
+status = SUCCESS
+```
+
+才 SKIP。
+
+ERROR / RUNNING 可重新 retry。
 
 ---
 
-# Important Rules For Future Agents
+# 9. Price Backfill Raw-first Validation
 
-1. 不要重新抓已完成的 6000 筆 TDCC history。
-2. 不要把 TPEx missing institutional row 直接視為資料不足。
-3. TPEx ZERO_INFERRED 只能推論 foreign_net=0。
-4. 不要為 ZERO_INFERRED 製造假的 foreign_buy / foreign_sell。
-5. TDCC history token 每次 POST 前必須重新 GET。
-6. TDCC latest 與 history 使用不同資料來源。
-7. 不要因 Final PASS=0 就直接降低策略門檻。
-8. 不要直接把 Sleep volatility 0.80 改成 0.95/1.00。
-9. 目前策略研究重點是「setup semantic / timing」，不是 data coverage。
-10. 所有回測與 snapshot logic 應逐步移除 date.today() dependency，統一使用 as_of_date / reference_date。
+TWSE 測試：
+
+```text
+Stock : 1101
+Month : 2026-05
+
+daily_prices = 20
+raw_responses = 1
+crawl_log = SUCCESS / 20
+```
+
+TPEx 測試：
+
+```text
+Stock : 1240
+Month : 2026-05
+
+daily_prices = 20
+raw_responses = 1
+crawl_log = SUCCESS / 20
+```
+
+因此：
+
+```text
+TWSE Raw-first = PASS
+TPEx Raw-first = PASS
+```
+
+Crawler 可直接重用。
+
+---
+
+# 10. Price Backfill Phase 1
+
+目前第一階段計畫：
+
+```text
+2026-05
+2026-06
+```
+
+Active stocks × 2 months：
+
+```text
+Units = 3958
+```
+
+開始前：
+
+```text
+Already SUCCESS = 4
+Need download   = 3954
+```
+
+2026-09-11 早上曾開始 TWSE：
+
+```powershell
+python scripts/backfill_market_prices.py `
+  --start 2026-05 `
+  --end 2026-06 `
+  --market TWSE `
+  --sleep 0.15
+```
+
+因接近台股開盤，開始大量 ERROR。
+
+使用者已手動 Ctrl+C。
+
+停止時：
+
+```text
+Units    : 2178
+Processed: 325
+SUCCESS  : 58
+SKIP     : 1
+NO_DATA  : 0
+ERROR    : 265
+```
+
+不要重新從頭開始。
+
+SUCCESS 會由 crawl log 自動 SKIP。
+
+---
+
+# 11. NEXT SESSION — START HERE
+
+下次 GPT 接手後：
+
+不要先跑 backfill。
+
+不要先跑 backtest。
+
+不要再檢查 Git recovery。
+
+第一個動作：
+
+查最近 TWSE Price backfill ERROR 原因。
+
+執行：
+
+```powershell
+python -c 'from db.database import get_connection; c=get_connection(); rows=c.execute("SELECT request_key, error_message, finished_at FROM crawl_logs WHERE source=? AND status=? ORDER BY finished_at DESC LIMIT 10", ("TWSE_STOCK_DAY","ERROR")).fetchall(); [print(tuple(r)) for r in rows]; c.close()'
+```
+
+使用者貼出結果後再判斷。
+
+若確認只是盤前／盤中官方 API 不穩：
+
+不要改 crawler。
+
+改成收盤後續跑：
+
+```powershell
+python scripts/backfill_market_prices.py `
+  --start 2026-05 `
+  --end 2026-06 `
+  --market TWSE `
+  --sleep 0.15
+```
+
+已 SUCCESS 的 request_key 會自動 SKIP。
+
+TWSE 完成後，再跑 TPEx。
+
+Price backfill 完成後：
+
+重新檢查：
+
+```text
+2026-07-17
+Price >=30 days
+```
+
+確認 coverage 明顯提高後，才重新跑：
+
+```text
+Trade Plan V2 historical backtest
+```
+
+---
+
+# 12. Project Strategy Direction Has Changed
+
+第一版策略：
+
+```text
+Sleep /30
+Chip /40
+Breakout /30
+Total /100
+```
+
+並要求：
+
+```text
+Sleep PASS
++
+Chip PASS
++
+Breakout PASS
+=
+Final PASS
+```
+
+研究已證明：
+
+```text
+Sleep 與 Breakout 同日高度互斥
+```
+
+因此第一版雖然可以算 100 分，但不是使用者真正想要的選股模型。
+
+新版不要再以：
+
+```text
+「三關全部 PASS」
+```
+
+作為主要推薦邏輯。
+
+使用者真正需要的是：
+
+> 從全市場中找出「近期最值得等待或考慮進場」的股票，而不是找所有條件同一天同時成立的股票。
+
+---
+
+# 13. V2 Investment Philosophy
+
+GPT 應扮演資深台股分析研究夥伴。
+
+可以參考公開可查的台股分析師方法論精神，例如：
+
+```text
+鐘崑禎
+王倚隆
+以及其他成熟的基本面 / 籌碼 / 技術 / 趨勢分析方法
+```
+
+但：
+
+不要宣稱完整複製任何分析師私人模型。
+
+不要因為某分析師推薦某股票，就直接加入 TOP10。
+
+系統應自己依資料與回測驗證。
+
+可以借鏡的核心精神：
+
+```text
+1. 先選對方向
+2. 找強勢或可能轉強的股票
+3. 不只看單一技術指標
+4. 籌碼必須協助驗證
+5. 好股票也要等合理買點
+6. 不追已過度延伸的股票
+7. 買進前先決定風險價
+8. 買進前先有完整交易劇本
+9. 賣點與停損的重要性不低於買點
+10. 所有規則最後必須用歷史資料回測
+```
+
+---
+
+# 14. New TOP10 Definition
+
+新版最重要的輸出不是：
+
+```text
+PASS / FAIL
+```
+
+而是：
+
+```text
+TOP 10 BUY OPPORTUNITIES
+```
+
+每天使用最新「已完成交易日」資料掃描：
+
+```text
+TWSE + TPEx
+```
+
+產生全市場 ranking。
+
+TOP10 代表：
+
+> 目前在趨勢、位置、動能、籌碼與風險報酬綜合考量下，最值得優先觀察的 10 檔。
+
+不是保證上漲。
+
+不是無條件立即買進。
+
+---
+
+# 15. Proposed Opportunity Score V2 /100
+
+目前建議研究以下新版權重：
+
+## A. Trend /20
+
+判斷股票的大方向是否有利。
+
+例如：
+
+```text
+價格相對 MA20 / MA60
+MA20 slope
+中短期趨勢排列
+近期高低點結構
+```
+
+重點：
+
+```text
+不要逆著明顯下降趨勢硬找買點
+```
+
+---
+
+## B. Setup / Entry Timing /20
+
+判斷現在是不是「值得準備進場的位置」。
+
+例如：
+
+```text
+整理
+量縮
+回測支撐
+靠近 MA10 / MA20
+波動收斂
+突破前整理
+突破後第一次健康拉回
+```
+
+這一項取代舊版：
+
+```text
+Sleep 必須 30/30
+```
+
+Sleep Strong 仍可保留，但不是所有強勢股必經條件。
+
+---
+
+## C. Momentum / Volume /15
+
+判斷價格是否真的開始轉強。
+
+例如：
+
+```text
+近高突破
+5D / 10D / 20D momentum
+成交量放大
+收盤靠近高點
+突破後是否站穩
+```
+
+不要只因單日爆量就給高分。
+
+---
+
+## D. Foreign /15
+
+判斷外資是否支持目前走勢。
+
+研究：
+
+```text
+近期淨買超
+連續性
+由賣轉買
+買超加速
+價格與外資是否同步
+```
+
+必須使用 effective foreign semantic。
+
+ZERO_INFERRED：
+
+```text
+foreign_net = 0
+```
+
+不可製造 fake buy / sell。
+
+---
+
+## E. TDCC /10
+
+判斷持股結構是否往有利方向改變。
+
+主要觀察：
+
+```text
+large_holder_pct
+retail_holder_pct
+```
+
+偏多方向：
+
+```text
+large holders 增加
+retail holders 減少
+```
+
+最好使用市場橫向 percentile / ranking，而不是單一死門檻。
+
+---
+
+## F. Relative Strength /10
+
+TOP10 必須考慮：
+
+> 這檔股票是否比市場其他股票更強。
+
+可比較：
+
+```text
+5D return percentile
+10D return percentile
+20D return percentile
+```
+
+避免只因股票自己上漲，就不知道它其實落後大盤或其他股票。
+
+---
+
+## G. Trade Quality /10
+
+這一項非常重要。
+
+不是「股票很強」就適合今天買。
+
+評估：
+
+```text
+目前價格距離 buy zone
+risk %
+Risk / Reward
+是否過度延伸
+是否已錯過合理進場位置
+```
+
+即使 Bullish Score 很高：
+
+如果：
+
+```text
+EXTENDED
+```
+
+或：
+
+```text
+risk 太大
+```
+
+就不能進 TOP10 Buy List。
+
+---
+
+# 16. TOP10 Hard Filters
+
+進入 TOP10 前至少要求：
+
+```text
+data_status = READY
+
+candidate_eligible = True
+
+Bullish Score >= research minimum
+```
+
+Stage 優先：
+
+```text
+SETUP
+READY
+BREAKOUT
+MOMENTUM
+```
+
+若：
+
+```text
+EXTENDED
+```
+
+不可列為「建議追價 TOP10」。
+
+可以列：
+
+```text
+強勢觀察
+等待拉回
+```
+
+若：
+
+```text
+WEAK
+```
+
+不進 TOP10。
+
+若：
+
+```text
+risk_pct > 10%
+```
+
+預設不進 candidate。
+
+如果買進區已明顯低於／遠離現價：
+
+```text
+WAIT
+```
+
+而不是硬給 BUY。
+
+---
+
+# 17. Chinese Stock State Display
+
+網站不要只顯示英文 Stage。
+
+使用者看到的主要狀態：
+
+```text
+打底
+蓄勢
+待發動
+突破
+動能延續
+漲幅延伸
+偏弱
+```
+
+Bullish V2 internal stage 可保留英文。
+
+UI 顯示使用中文。
+
+其中：
+
+```text
+漲幅延伸
+```
+
+可能代表非常強，
+
+但：
+
+```text
+強 ≠ 現在適合追價
+```
+
+因此操作提示通常為：
+
+```text
+等待拉回
+```
+
+---
+
+# 18. Buy / Risk / Target Model
+
+每一檔 TOP10 必須提供：
+
+```text
+模型買進參考區
+風險參考價
+模型獲利參考區
+操作提示
+```
+
+## Buy Zone
+
+不要只給單一價格。
+
+使用：
+
+```text
+buy_zone_low ~ buy_zone_high
+```
+
+可綜合：
+
+```text
+ATR
+MA10 / MA20
+近期支撐
+突破位
+近期低點
+stage
+```
+
+---
+
+## Risk Price
+
+買進前必須先知道：
+
+```text
+分析錯了要在哪裡離場
+```
+
+Risk Price 可依：
+
+```text
+近期 swing low
+重要支撐
+ATR buffer
+```
+
+計算。
+
+Risk 不能過大。
+
+---
+
+## Target Zone
+
+使用 Risk / Reward：
+
+```text
+1.5R ~ 2.5R
+```
+
+作為模型獲利參考區。
+
+這是：
+
+```text
+trade planning reference
+```
+
+不是：
+
+```text
+股價預測
+```
+
+---
+
+# 19. Suggested Action Labels
+
+網站操作提示盡量簡單：
+
+```text
+可分批布局
+等待回測買進區
+等待突破確認
+突破後可觀察
+持有／動能續強
+漲幅延伸－不要追價
+跌破風險價－退出觀察
+偏弱－暫不考慮
+資料不足
+```
+
+避免輸出太多專業術語。
+
+---
+
+# 20. TOP10 Card Required Fields
+
+第二頁每檔 TOP10 建議至少顯示：
+
+```text
+Rank
+
+股票代號
+股票名稱
+
+Bullish Score /100
+
+目前狀態
+例如：
+待發動
+
+最新收盤價
+
+買進參考區
+
+風險參考價
+
+獲利參考區
+
+操作提示
+
+詳細分析按鈕
+```
+
+不要在 TOP10 首頁塞所有技術數據。
+
+---
+
+# 21. Detailed Analysis Page / Modal
+
+使用者點：
+
+```text
+詳細分析
+```
+
+才顯示：
+
+```text
+Trend score
+Setup score
+Momentum score
+Foreign score
+TDCC score
+Relative Strength
+Trade Quality
+
+目前狀態判斷原因
+
+近期價格結構
+
+外資變化
+
+TDCC 變化
+
+買進區計算概念
+
+風險價
+
+Risk %
+
+1.5R
+2R
+2.5R
+
+模型操作劇本
+```
+
+並用白話解釋。
+
+不要只顯示：
+
+```text
+MA20=xxx
+ATR=xxx
+```
+
+必須翻譯成：
+
+```text
+股價仍維持短期多頭結構
+目前接近合理買進區
+外資近期由賣轉買
+大戶比例增加
+目前尚未過度延伸
+```
+
+---
+
+# 22. Future Fundamental / Industry Layer
+
+因公開投資方法常包含：
+
+```text
+產業趨勢
+營收
+EPS
+成長
+低基期
+未來展望
+```
+
+StockWaveScanner 未來可以增加：
+
+```text
+Fundamental / Industry Overlay
+```
+
+但目前若 DB 尚無可靠資料：
+
+不要虛構基本面分數。
+
+不要自行從未知資料猜 EPS 或目標價。
+
+應先建立正式資料來源與 backtest，再考慮納入 /100。
+
+目前 Bullish V2 先以：
+
+```text
+Price
+Trend
+Setup
+Momentum
+Foreign
+TDCC
+Relative Strength
+Trade Quality
+```
+
+完成第一階段。
+
+---
+
+# 23. Mobile UI V2
+
+新版網站必須 Mobile First。
+
+不要像第一版把全部資料塞在同一頁。
+
+建議使用手機底部 Navigation：
+
+```text
+狀態
+TOP10
+查股票
+```
+
+---
+
+# 24. Page 1 — 系統狀態
+
+第一頁只回答：
+
+> 今天資料有沒有更新成功？
+
+顯示：
+
+```text
+StockWaveScanner
+
+資料日期：
+YYYY-MM-DD
+
+最後更新：
+YYYY-MM-DD HH:MM
+
+Active stocks：
+1979
+
+Price ready：
+xxxx / 1979
+
+Foreign ready：
+xxxx / 1979
+
+TDCC ready：
+xxxx / 1979
+
+Ranking ready：
+xxxx / 1979
+
+系統狀態：
+資料正常
+```
+
+如果某資料源失敗：
+
+清楚顯示：
+
+```text
+部分資料尚未更新
+```
+
+不要假裝正常。
+
+---
+
+# 25. Page 2 — 今日 TOP10
+
+第二頁：
+
+```text
+今日 TOP10
+```
+
+採手機卡片式列表。
+
+例如：
+
+```text
+#1  2330 台積電
+
+看漲強度：82 /100
+狀態：待發動
+
+最新：xxx
+
+買進參考：
+xxx ~ xxx
+
+風險：
+xxx
+
+獲利參考：
+xxx ~ xxx
+
+操作：
+等待回測後分批布局
+
+[詳細分析]
+```
+
+依排名顯示 10 檔。
+
+不要一次展開所有細節。
+
+---
+
+# 26. Page 3 — 股票查詢
+
+第三頁：
+
+```text
+股票查詢
+```
+
+輸入：
+
+```text
+股票代號
+```
+
+例如：
+
+```text
+2330
+```
+
+或股票名稱：
+
+```text
+台積電
+```
+
+搜尋結果使用與 TOP10 詳細頁相同資料格式。
+
+即使股票不在 TOP10：
+
+仍然顯示：
+
+```text
+Bullish Score
+狀態
+買進區
+風險價
+獲利區
+操作提示
+排名
+```
+
+若不適合買：
+
+必須直接說：
+
+```text
+目前不建議進場
+```
+
+並說明原因。
+
+---
+
+# 27. Ranking Output Philosophy
+
+不要讓 TOP10 變成單純：
+
+```text
+Score 最大的前 10 名
+```
+
+真正排序應考慮：
+
+```text
+Score
++
+Timing
++
+Trade Quality
++
+Risk
++
+是否已過度延伸
+```
+
+例如：
+
+```text
+股票 A Score 90
+但已 EXTENDED
+```
+
+不一定比：
+
+```text
+股票 B Score 80
+且正進入 READY buy zone
+```
+
+更值得買。
+
+所以要區分：
+
+```text
+Strongest Stocks
+```
+
+與：
+
+```text
+Best Current Buy Opportunities
+```
+
+使用者主要要的是第二種。
+
+---
+
+# 28. Backtest Requirements Before Production
+
+任何 TOP10 規則修改前都應回測。
+
+至少比較：
+
+```text
+5D
+10D
+20D return
+
+Win rate
+
+MFE
+MAE
+
+1.5R target first
+2R target first
+2.5R target first
+
+Risk first
+```
+
+並依：
+
+```text
+Score band
+Stage
+State
+Market
+```
+
+拆分結果。
+
+尤其比較：
+
+```text
+SETUP
+READY
+BREAKOUT
+MOMENTUM
+EXTENDED
+```
+
+哪一種真正有較好的：
+
+```text
+未來報酬
+風險報酬
+成功率
+```
+
+不能只憑感覺修改 production。
+
+---
+
+# 29. Current Priority Order
+
+目前不要先做 UI。
+
+正確順序：
+
+```text
+1. 查 Price backfill ERROR 原因
+
+2. 完成 Price historical backfill
+
+3. 確認 historical coverage
+
+4. 跑 Bullish V2 + Trade Plan V2 backtest
+
+5. 分析哪種 Stage / Score 真正有效
+
+6. 調整 TOP10 ranking
+
+7. 確認 Buy / Risk / Target 模型
+
+8. 才開始做 GitHub Pages V2 UI
+```
+
+不要跳過 backtest 直接做漂亮介面。
+
+---
+
+# 30. Communication Rules For Next GPT
+
+使用者不是 Python 專業開發者。
+
+每次只做一個明確步驟。
+
+回答優先格式：
+
+```text
+現在做什麼
+↓
+PowerShell 指令
+↓
+正常會看到什麼
+```
+
+不要一次提供 10 個後續指令。
+
+如果使用者貼出 ERROR：
+
+```text
+停止
+→ 分析 ERROR
+→ 再提供下一個指令
+```
+
+不要叫使用者自己猜。
+
+如果已有 AGENTS.md 紀錄：
+
+不要重新詢問前一天做過什麼。
+
+直接從：
+
+```text
+NEXT SESSION — START HERE
+```
+
+開始。
+
+---
+
+# 31. Investment Output Disclaimer / Semantic
+
+StockWaveScanner 提供的是：
+
+```text
+模型研究結果
+看漲機會排序
+模型買進參考區
+風險參考價
+Risk / Reward 參考
+```
+
+不是保證獲利。
+
+「建議買入價」在系統語意上應稱：
+
+```text
+模型買進參考區
+```
+
+「賣出價」應區分：
+
+```text
+風險退出價
+模型獲利參考區
+```
+
+避免把單一模型價格描述成確定會發生的市場價格。
+
+---
+
+# 32. Most Important Next Action
+
+下一次回來詢問 GPT 時：
+
+直接從下面這個動作開始。
+
+```powershell
+python -c 'from db.database import get_connection; c=get_connection(); rows=c.execute("SELECT request_key, error_message, finished_at FROM crawl_logs WHERE source=? AND status=? ORDER BY finished_at DESC LIMIT 10", ("TWSE_STOCK_DAY","ERROR")).fetchall(); [print(tuple(r)) for r in rows]; c.close()'
+```
+
+目的：
+
+```text
+確認今天早上 Price historical backfill
+265 個 ERROR 的真正原因。
+```
+
+在看到 ERROR 內容以前：
+
+不要修改 crawler。
+
+不要重新跑大量 backfill。
+
+不要重新跑 historical backtest。
+
+不要重新處理 Git recovery。
