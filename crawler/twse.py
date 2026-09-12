@@ -15,6 +15,15 @@ from db.repository import (
 
 BASE_URL = "https://www.twse.com.tw/exchangeReport/STOCK_DAY"
 
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/152.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+}
 
 def save_raw_response(
     source: str,
@@ -194,15 +203,50 @@ def download_month(
 
     try:
 
-        response = requests.get(
-            BASE_URL,
-            params=params,
-            timeout=30,
-            headers={
-                "User-Agent":
-                    "Mozilla/5.0 StockWaveScanner/1.0"
-            },
-        )
+#         response = requests.get(
+#             BASE_URL,
+#             params=params,
+#             timeout=30,
+#             headers={
+#                 "User-Agent":
+#                     "Mozilla/5.0 StockWaveScanner/1.0"
+#             },
+#         )
+
+#         response.raise_for_status()
+
+        retry_waits = [5, 15, 30]
+
+        for attempt in range(
+            len(retry_waits) + 1
+        ):
+            response = requests.get(
+                BASE_URL,
+                params=params,
+                timeout=30,
+                headers=HEADERS,
+            )
+
+            if response.status_code != 428:
+                break
+
+            if attempt >= len(retry_waits):
+                break
+
+            wait_seconds = retry_waits[
+                attempt
+            ]
+
+            print(
+                f"[428 RETRY] "
+                f"{stock_id} "
+                f"{year}-{month:02d} "
+                f"等待 {wait_seconds} 秒後重試"
+            )
+
+            time.sleep(
+                wait_seconds
+            )
 
         response.raise_for_status()
 
