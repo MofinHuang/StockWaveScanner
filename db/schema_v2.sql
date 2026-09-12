@@ -1,7 +1,7 @@
 -- ============================================================
 -- StockWaveScanner V2
 -- Turso / libSQL Schema
--- Version: V2.1 Draft 1
+-- Version: V2.1-DRAFT-2
 -- Target: stockwave-dev first
 -- ============================================================
 
@@ -54,15 +54,16 @@ CREATE TABLE IF NOT EXISTS market_index_daily (
     index_code             TEXT NOT NULL,
     trade_date             TEXT NOT NULL,
 
-    open                    REAL NOT NULL,
-    high                    REAL NOT NULL,
-    low                     REAL NOT NULL,
-    close                   REAL NOT NULL,
+    open                   REAL NOT NULL,
+    high                   REAL NOT NULL,
+    low                    REAL NOT NULL,
+    close                  REAL NOT NULL,
 
     volume                  REAL,
     turnover                REAL,
 
     source                  TEXT,
+
     created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -100,6 +101,7 @@ CREATE TABLE IF NOT EXISTS stock_price_daily (
     trade_count             INTEGER,
 
     source                  TEXT,
+
     created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -122,6 +124,18 @@ CREATE INDEX IF NOT EXISTS idx_stock_price_stock_date
 -- ============================================================
 -- 4. INSTITUTIONAL DAILY
 -- ============================================================
+--
+-- 三種法人各自保存資料狀態。
+--
+-- STORED
+--     官方資料中有明確資料。
+--
+-- ZERO_INFERRED
+--     根據可靠規則可確認為 0。
+--
+-- INSUFFICIENT_DATA
+--     沒有足夠資訊，不可當成 0。
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS institutional_daily (
     stock_id               TEXT NOT NULL,
@@ -140,8 +154,11 @@ CREATE TABLE IF NOT EXISTS institutional_daily (
     dealer_net             INTEGER,
 
     foreign_data_status    TEXT NOT NULL DEFAULT 'INSUFFICIENT_DATA',
+    trust_data_status      TEXT NOT NULL DEFAULT 'INSUFFICIENT_DATA',
+    dealer_data_status     TEXT NOT NULL DEFAULT 'INSUFFICIENT_DATA',
 
     source                  TEXT,
+
     created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -159,6 +176,22 @@ CREATE TABLE IF NOT EXISTS institutional_daily (
             'ZERO_INFERRED',
             'INSUFFICIENT_DATA'
         )
+    ),
+
+    CHECK (
+        trust_data_status IN (
+            'STORED',
+            'ZERO_INFERRED',
+            'INSUFFICIENT_DATA'
+        )
+    ),
+
+    CHECK (
+        dealer_data_status IN (
+            'STORED',
+            'ZERO_INFERRED',
+            'INSUFFICIENT_DATA'
+        )
     )
 );
 
@@ -170,7 +203,11 @@ CREATE INDEX IF NOT EXISTS idx_institutional_stock_date
 
 
 -- ============================================================
--- 5. TDCC DISTRIBUTION
+-- 5. TDCC RAW DISTRIBUTION
+-- ============================================================
+--
+-- 官方 TDCC 原始持股分級。
+-- 不直接用 V1 large_holder_pct / retail_holder_pct 填入。
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS tdcc_distribution (
@@ -183,6 +220,7 @@ CREATE TABLE IF NOT EXISTS tdcc_distribution (
     percentage             REAL,
 
     source                  TEXT NOT NULL DEFAULT 'TDCC',
+
     created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -201,7 +239,51 @@ CREATE INDEX IF NOT EXISTS idx_tdcc_stock_date
 
 
 -- ============================================================
--- 6. MONTHLY REVENUE
+-- 6. TDCC SUMMARY
+-- ============================================================
+--
+-- V2 衍生後的 TDCC 中期籌碼摘要。
+--
+-- V1 tdcc_holdings 可搬入：
+--     large_holder_pct
+--     retail_holder_pct
+--
+-- change 欄位可由相鄰期重新計算。
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS tdcc_summary (
+    stock_id               TEXT NOT NULL,
+    data_date              TEXT NOT NULL,
+
+    large_holder_pct       REAL,
+    retail_holder_pct      REAL,
+
+    large_holder_change    REAL,
+    retail_holder_change   REAL,
+
+    source                  TEXT NOT NULL DEFAULT 'TDCC',
+
+    created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (
+        stock_id,
+        data_date
+    ),
+
+    FOREIGN KEY (stock_id)
+        REFERENCES stock_master (stock_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tdcc_summary_date
+    ON tdcc_summary (data_date);
+
+CREATE INDEX IF NOT EXISTS idx_tdcc_summary_stock_date
+    ON tdcc_summary (stock_id, data_date DESC);
+
+
+-- ============================================================
+-- 7. MONTHLY REVENUE
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS monthly_revenue (
@@ -217,6 +299,7 @@ CREATE TABLE IF NOT EXISTS monthly_revenue (
     cumulative_yoy_pct     REAL,
 
     source                  TEXT,
+
     created_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at              TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -237,22 +320,7 @@ CREATE INDEX IF NOT EXISTS idx_monthly_revenue_stock_month
 
 
 -- ============================================================
--- 7. QUARTERLY FINANCIAL
--- ============================================================
---
--- 注意：
--- 不同產業財報 Schema 不完全一致。
---
--- V2 第一版只保存跨產業可合理 Normalize 的共通指標。
--- 無法可靠取得的欄位使用 NULL，不得用 0 假裝。
---
--- report_type 用於區分：
--- GENERAL
--- FINANCIAL_HOLDING
--- BANK
--- INSURANCE
--- SECURITIES
--- OTHER
+-- 8. QUARTERLY FINANCIAL
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS quarterly_financial (
@@ -316,25 +384,7 @@ CREATE INDEX IF NOT EXISTS idx_quarterly_financial_stock_period
 
 
 -- ============================================================
--- 8. SYNC STATE
--- ============================================================
---
--- 用來記錄每個 Dataset 最後一次同步狀態。
---
--- dataset examples:
--- stock_master_twse
--- stock_master_tpex
--- market_index_twse
--- market_index_tpex
--- stock_price_twse
--- stock_price_tpex
--- institutional_twse
--- institutional_tpex
--- tdcc
--- monthly_revenue_twse
--- monthly_revenue_tpex
--- quarterly_financial_twse
--- quarterly_financial_tpex
+-- 9. SYNC STATE
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS sync_state (
@@ -364,7 +414,7 @@ CREATE TABLE IF NOT EXISTS sync_state (
 
 
 -- ============================================================
--- 9. SCHEMA META
+-- 10. SCHEMA META
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -380,7 +430,7 @@ INSERT INTO schema_meta (
 )
 VALUES (
     'schema_version',
-    'V2.1-DRAFT-1',
+    'V2.1-DRAFT-2',
     CURRENT_TIMESTAMP
 )
 ON CONFLICT(schema_key)

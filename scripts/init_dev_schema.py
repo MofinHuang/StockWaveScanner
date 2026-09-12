@@ -13,17 +13,37 @@ ROOT = Path(__file__).resolve().parents[1]
 ENV_FILE = ROOT / ".env"
 SCHEMA_FILE = ROOT / "db" / "schema_v2.sql"
 
+
 EXPECTED_TABLES = {
     "stock_master",
     "market_index_daily",
     "stock_price_daily",
     "institutional_daily",
     "tdcc_distribution",
+    "tdcc_summary",
     "monthly_revenue",
     "quarterly_financial",
     "sync_state",
     "schema_meta",
 }
+
+
+EXPECTED_INSTITUTIONAL_STATUS_COLUMNS = {
+    "foreign_data_status",
+    "trust_data_status",
+    "dealer_data_status",
+}
+
+
+STATUS_VALUES_SQL = """
+CHECK (
+    {column_name} IN (
+        'STORED',
+        'ZERO_INFERRED',
+        'INSUFFICIENT_DATA'
+    )
+)
+"""
 
 
 def mask_url(url: str) -> str:
@@ -44,8 +64,15 @@ def mask_url(url: str) -> str:
 def load_dev_credentials() -> tuple[str, str]:
     load_dotenv(ENV_FILE)
 
-    url = os.getenv("TURSO_DEV_DATABASE_URL", "").strip()
-    token = os.getenv("TURSO_DEV_AUTH_TOKEN", "").strip()
+    url = os.getenv(
+        "TURSO_DEV_DATABASE_URL",
+        "",
+    ).strip()
+
+    token = os.getenv(
+        "TURSO_DEV_AUTH_TOKEN",
+        "",
+    ).strip()
 
     if not url:
         raise RuntimeError(
@@ -58,16 +85,18 @@ def load_dev_credentials() -> tuple[str, str]:
         )
 
     # --------------------------------------------------------
-    # Hard safety guard:
-    # 這支程式只允許操作 StockWaveScanner DEV Database。
+    # Hard Safety Guard
     # --------------------------------------------------------
-    if "stockwave-dev" not in url.lower():
+
+    lower_url = url.lower()
+
+    if "stockwave-dev" not in lower_url:
         raise RuntimeError(
             "SAFETY STOP: "
             "TURSO_DEV_DATABASE_URL does not point to stockwave-dev"
         )
 
-    if "stockwave-prod" in url.lower():
+    if "stockwave-prod" in lower_url:
         raise RuntimeError(
             "SAFETY STOP: PROD database detected"
         )
@@ -81,29 +110,27 @@ def read_schema() -> str:
             f"Schema file not found: {SCHEMA_FILE}"
         )
 
-    sql = SCHEMA_FILE.read_text(encoding="utf-8")
+    sql = SCHEMA_FILE.read_text(
+        encoding="utf-8",
+    )
 
     if not sql.strip():
-        raise RuntimeError("schema_v2.sql is empty")
+        raise RuntimeError(
+            "schema_v2.sql is empty"
+        )
 
     return sql
 
 
-def split_sql_statements(sql: str) -> list[str]:
-    """
-    將 schema SQL 拆成單一 statements。
-
-    使用 sqlite3.complete_statement 判斷分號是否構成
-    一個完整 SQLite statement，而不是用單純 split(';')。
-    """
-
+def split_sql_statements(
+    sql: str,
+) -> list[str]:
     statements: list[str] = []
     buffer: list[str] = []
 
     for raw_line in sql.splitlines():
         line = raw_line.strip()
 
-        # schema_v2.sql 目前只有 -- 單行註解。
         if not line:
             continue
 
@@ -112,13 +139,22 @@ def split_sql_statements(sql: str) -> list[str]:
 
         buffer.append(raw_line)
 
-        candidate = "\n".join(buffer).strip()
+        candidate = "\n".join(
+            buffer
+        ).strip()
 
-        if sqlite3.complete_statement(candidate):
-            statements.append(candidate)
+        if sqlite3.complete_statement(
+            candidate
+        ):
+            statements.append(
+                candidate
+            )
+
             buffer = []
 
-    remaining = "\n".join(buffer).strip()
+    remaining = "\n".join(
+        buffer
+    ).strip()
 
     if remaining:
         raise RuntimeError(
@@ -129,7 +165,104 @@ def split_sql_statements(sql: str) -> list[str]:
     return statements
 
 
-def fetch_table_names(conn) -> set[str]:
+def table_exists(
+    conn,
+    table_name: str,
+) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+        LIMIT 1
+        """,
+        (table_name,),
+    ).fetchone()
+
+    return row is not None
+
+
+def get_table_columns(
+    conn,
+    table_name: str,
+) -> set[str]:
+    rows = conn.execute(
+        f'PRAGMA table_info("{table_name}")'
+    ).fetchall()
+
+    return {
+        str(row[1])
+        for row in rows
+    }
+
+
+def ensure_institutional_status_columns(
+    conn,
+) -> int:
+    """
+    Upgrade DRAFT-1 institutional_daily safely.
+
+    Existing DRAFT-1 already contains:
+        foreign_data_status
+
+    DRAFT-2 additionally requires:
+        trust_data_status
+        dealer_data_status
+
+    This function is idempotent because it checks
+    PRAGMA table_info before ALTER TABLE.
+    """
+
+    if not table_exists(
+        conn,
+        "institutional_daily",
+    ):
+        return 0
+
+    columns = get_table_columns(
+        conn,
+        "institutional_daily",
+    )
+
+    added = 0
+
+    for column_name in sorted(
+        EXPECTED_INSTITUTIONAL_STATUS_COLUMNS
+    ):
+        if column_name in columns:
+            continue
+
+        check_sql = (
+            STATUS_VALUES_SQL.format(
+                column_name=column_name
+            )
+            .strip()
+        )
+
+        sql = f"""
+        ALTER TABLE institutional_daily
+        ADD COLUMN {column_name}
+            TEXT NOT NULL
+            DEFAULT 'INSUFFICIENT_DATA'
+            {check_sql}
+        """
+
+        print(
+            f"[MIGRATE] Add "
+            f"institutional_daily.{column_name}"
+        )
+
+        conn.execute(sql)
+
+        added += 1
+
+    return added
+
+
+def fetch_table_names(
+    conn,
+) -> set[str]:
     rows = conn.execute(
         """
         SELECT name
@@ -140,29 +273,88 @@ def fetch_table_names(conn) -> set[str]:
         """
     ).fetchall()
 
-    return {str(row[0]) for row in rows}
+    return {
+        str(row[0])
+        for row in rows
+    }
 
 
-def verify_schema(conn) -> None:
-    actual_tables = fetch_table_names(conn)
+def verify_schema(
+    conn,
+) -> None:
+    actual_tables = fetch_table_names(
+        conn
+    )
 
     print()
-    print("=" * 64)
+    print("=" * 68)
     print("TABLE VERIFICATION")
-    print("=" * 64)
+    print("=" * 68)
 
-    for table in sorted(EXPECTED_TABLES):
+    for table in sorted(
+        EXPECTED_TABLES
+    ):
         if table in actual_tables:
-            print(f"[PASS] {table}")
+            print(
+                f"[PASS] {table}"
+            )
         else:
-            print(f"[FAIL] {table}")
+            print(
+                f"[FAIL] {table}"
+            )
 
-    missing = EXPECTED_TABLES - actual_tables
+    missing_tables = (
+        EXPECTED_TABLES
+        - actual_tables
+    )
 
-    if missing:
+    if missing_tables:
         raise RuntimeError(
             "Missing tables: "
-            + ", ".join(sorted(missing))
+            + ", ".join(
+                sorted(
+                    missing_tables
+                )
+            )
+        )
+
+    institutional_columns = (
+        get_table_columns(
+            conn,
+            "institutional_daily",
+        )
+    )
+
+    print()
+    print("=" * 68)
+    print("INSTITUTIONAL STATUS VERIFICATION")
+    print("=" * 68)
+
+    for column in sorted(
+        EXPECTED_INSTITUTIONAL_STATUS_COLUMNS
+    ):
+        if column in institutional_columns:
+            print(
+                f"[PASS] {column}"
+            )
+        else:
+            print(
+                f"[FAIL] {column}"
+            )
+
+    missing_status_columns = (
+        EXPECTED_INSTITUTIONAL_STATUS_COLUMNS
+        - institutional_columns
+    )
+
+    if missing_status_columns:
+        raise RuntimeError(
+            "Missing institutional status columns: "
+            + ", ".join(
+                sorted(
+                    missing_status_columns
+                )
+            )
         )
 
     version_row = conn.execute(
@@ -178,36 +370,84 @@ def verify_schema(conn) -> None:
             "schema_version was not found in schema_meta"
         )
 
-    schema_version = str(version_row[0])
+    schema_version = str(
+        version_row[0]
+    )
+
+    if schema_version != "V2.1-DRAFT-2":
+        raise RuntimeError(
+            "Unexpected schema version: "
+            f"{schema_version}"
+        )
 
     print()
-    print(f"Schema Version : {schema_version}")
-    print(f"Expected Tables: {len(EXPECTED_TABLES)}")
-    print(f"Verified Tables: {len(EXPECTED_TABLES)}")
+    print(
+        f"Schema Version : "
+        f"{schema_version}"
+    )
+
+    print(
+        f"Expected Tables: "
+        f"{len(EXPECTED_TABLES)}"
+    )
+
+    print(
+        f"Verified Tables: "
+        f"{len(EXPECTED_TABLES)}"
+    )
 
 
 def main() -> int:
-    print("=" * 64)
-    print("StockWaveScanner V2 - Turso DEV Schema Initialization")
-    print("=" * 64)
+    print("=" * 68)
+    print(
+        "StockWaveScanner V2 - "
+        "Turso DEV Schema Initialization / Upgrade"
+    )
+    print("=" * 68)
     print()
 
     try:
-        url, token = load_dev_credentials()
+        url, token = (
+            load_dev_credentials()
+        )
 
-        print("Environment : DEV")
-        print(f"Database    : {mask_url(url)}")
-        print("PROD Access : DISABLED")
+        print(
+            "Environment : DEV"
+        )
+
+        print(
+            f"Database    : "
+            f"{mask_url(url)}"
+        )
+
+        print(
+            "PROD Access : DISABLED"
+        )
+
         print()
 
         sql = read_schema()
-        statements = split_sql_statements(sql)
 
-        print(f"Schema File : {SCHEMA_FILE.name}")
-        print(f"Statements  : {len(statements)}")
+        statements = (
+            split_sql_statements(
+                sql
+            )
+        )
+
+        print(
+            f"Schema File : "
+            f"{SCHEMA_FILE.name}"
+        )
+
+        print(
+            f"Statements  : "
+            f"{len(statements)}"
+        )
+
         print()
-
-        print("Connecting to Turso DEV ...")
+        print(
+            "Connecting to Turso DEV ..."
+        )
 
         conn = libsql.connect(
             database=url,
@@ -215,22 +455,59 @@ def main() -> int:
         )
 
         try:
-            result = conn.execute("SELECT 1").fetchone()
+            result = conn.execute(
+                "SELECT 1"
+            ).fetchone()
 
-            if not result or result[0] != 1:
+            if (
+                not result
+                or result[0] != 1
+            ):
                 raise RuntimeError(
                     "Turso DEV SELECT 1 validation failed"
                 )
 
-            print("[PASS] Turso DEV connection")
-            print()
+            print(
+                "[PASS] Turso DEV connection"
+            )
 
-            print("Applying schema ...")
+            print()
+            print(
+                "Checking compatibility migrations ..."
+            )
+
+            migrated_columns = (
+                ensure_institutional_status_columns(
+                    conn
+                )
+            )
+
+            if migrated_columns == 0:
+                print(
+                    "[PASS] No compatibility "
+                    "column migration required"
+                )
+            else:
+                print(
+                    f"[PASS] Added "
+                    f"{migrated_columns} "
+                    f"compatibility column(s)"
+                )
+
+            conn.commit()
+
+            print()
+            print(
+                "Applying canonical schema ..."
+            )
 
             executed = 0
 
             for statement in statements:
-                conn.execute(statement)
+                conn.execute(
+                    statement
+                )
+
                 executed += 1
 
             conn.commit()
@@ -240,14 +517,30 @@ def main() -> int:
                 f"({executed} statements)"
             )
 
-            verify_schema(conn)
+            verify_schema(
+                conn
+            )
 
             print()
-            print("=" * 64)
-            print("TURSO DEV SCHEMA INITIALIZATION OK")
-            print("=" * 64)
+            print("=" * 68)
+            print(
+                "TURSO DEV SCHEMA "
+                "INITIALIZATION / UPGRADE OK"
+            )
+            print("=" * 68)
+
             print()
-            print("No PROD database was accessed.")
+            print(
+                "No table was dropped."
+            )
+
+            print(
+                "No historical data was deleted."
+            )
+
+            print(
+                "No PROD database was accessed."
+            )
 
             return 0
 
@@ -256,14 +549,19 @@ def main() -> int:
 
     except Exception as exc:
         print()
-        print("=" * 64)
+        print("=" * 68)
         print("ERROR")
-        print("=" * 64)
+        print("=" * 68)
         print(str(exc))
         print()
-        print("No PROD database was accessed.")
+        print(
+            "No PROD database was accessed."
+        )
+
         return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(
+        main()
+    )
