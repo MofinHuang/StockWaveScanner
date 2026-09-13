@@ -1,0 +1,237 @@
+name: Historical Backfill DEV
+
+on:
+
+  workflow_dispatch:
+
+    inputs:
+
+      max_slices:
+
+        description:
+          "Maximum slices to process"
+
+        required: false
+
+        default: "4"
+
+      slice_size:
+
+        description:
+          "Companies per slice"
+
+        required: false
+
+        default: "100"
+
+      lookback_quarters:
+
+        description:
+          "Quarterly Financial history depth"
+
+        required: false
+
+        default: "8"
+
+
+  schedule:
+
+    # Taiwan every day 02:17
+    # UTC previous day 18:17
+    - cron: "17 18 * * *"
+
+
+permissions:
+
+  contents: read
+
+
+concurrency:
+
+  group:
+    stockwavescanner-historical-backfill-dev
+
+  cancel-in-progress: false
+
+
+jobs:
+
+  quarterly-financial-history:
+
+    name:
+      Quarterly Financial Historical Queue
+
+    runs-on:
+      windows-latest
+
+    timeout-minutes: 55
+
+
+    env:
+
+      PYTHONUNBUFFERED: "1"
+
+      PYTHONUTF8: "1"
+
+      PYTHONIOENCODING: "utf-8"
+
+      TURSO_DEV_DATABASE_URL:
+        ${{ secrets.TURSO_DEV_DATABASE_URL }}
+
+      TURSO_DEV_AUTH_TOKEN:
+        ${{ secrets.TURSO_DEV_AUTH_TOKEN }}
+
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+
+        with:
+
+          python-version: "3.13"
+
+          cache: "pip"
+
+          cache-dependency-path:
+            requirements-daily.txt
+
+
+      - name: Install dependencies
+        shell: bash
+
+        run: |
+
+          python -m pip install --upgrade pip
+
+          python -m pip install \
+            -r requirements-daily.txt
+
+
+      - name: Validate DEV secrets
+        shell: bash
+
+        run: |
+
+          if [ -z "$TURSO_DEV_DATABASE_URL" ]; then
+
+            echo "ERROR: TURSO_DEV_DATABASE_URL missing"
+
+            exit 1
+
+          fi
+
+
+          if [ -z "$TURSO_DEV_AUTH_TOKEN" ]; then
+
+            echo "ERROR: TURSO_DEV_AUTH_TOKEN missing"
+
+            exit 1
+
+          fi
+
+
+          case "$TURSO_DEV_DATABASE_URL" in
+
+            *stockwave-dev*)
+              ;;
+
+            *)
+
+              echo "ERROR: Database is not stockwave-dev"
+
+              exit 1
+
+              ;;
+
+          esac
+
+
+          case "$TURSO_DEV_DATABASE_URL" in
+
+            *stockwave-prod*)
+
+              echo "ERROR: PROD database detected"
+
+              exit 1
+
+              ;;
+
+          esac
+
+
+          echo "DEV database safety check PASS"
+
+
+      - name: Resolve queue parameters
+        id: params
+        shell: pwsh
+
+        run: |
+
+          $maxSlices = "${{ github.event.inputs.max_slices }}"
+
+          $sliceSize = "${{ github.event.inputs.slice_size }}"
+
+          $lookback = "${{ github.event.inputs.lookback_quarters }}"
+
+
+          if ([string]::IsNullOrWhiteSpace($maxSlices)) {
+
+              $maxSlices = "4"
+
+          }
+
+
+          if ([string]::IsNullOrWhiteSpace($sliceSize)) {
+
+              $sliceSize = "100"
+
+          }
+
+
+          if ([string]::IsNullOrWhiteSpace($lookback)) {
+
+              $lookback = "8"
+
+          }
+
+
+          "max_slices=$maxSlices" >> $env:GITHUB_OUTPUT
+
+          "slice_size=$sliceSize" >> $env:GITHUB_OUTPUT
+
+          "lookback=$lookback" >> $env:GITHUB_OUTPUT
+
+
+          Write-Host "Max Slices : $maxSlices"
+
+          Write-Host "Slice Size : $sliceSize"
+
+          Write-Host "Lookback   : $lookback"
+
+
+      - name: Run historical backfill queue
+        shell: pwsh
+
+        run: |
+
+          python `
+            scripts/run_historical_backfill_queue.py `
+            --max-slices "${{ steps.params.outputs.max_slices }}" `
+            --slice-size "${{ steps.params.outputs.slice_size }}" `
+            --lookback-quarters "${{ steps.params.outputs.lookback }}"
+
+
+      - name: Finish
+        shell: pwsh
+
+        run: |
+
+          Write-Host "Historical backfill daily slice finished."
+
+          Write-Host "UI publishing will pick up new data on the next scheduled build."

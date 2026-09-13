@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
+
 .env
 .DS_Store
 
@@ -8,8 +9,14 @@ __pycache__/
 data/*.db
 data/*.db-shm
 data/*.db-wal
-# GitHub Actions runtime / generated Pages
+
+# Runtime / staging
 runtime/
-docs/*
-!docs/.gitkeep
+
+# Generated GitHub Pages snapshot data
+# UI source files under docs/ must be committed,
+# but generated JSON is created by GitHub Actions.
+docs/data/latest/
+
+# Local release artifact
 stocks-db.zip

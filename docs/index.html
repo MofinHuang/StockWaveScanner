@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
+    >
+
+    <meta
+        name="theme-color"
+        content="#0b1020"
+    >
+
+    <title>StockWaveScanner V2</title>
+
+    <link
+        rel="stylesheet"
+        href="./styles.css"
+    >
+</head>
+
+<body>
+
+    <div class="app-shell">
+
+        <header class="top-header">
+
+            <div>
+                <div class="brand">
+                    StockWaveScanner
+                </div>
+
+                <div class="brand-subtitle">
+                    V2 Research Dashboard
+                </div>
+            </div>
+
+            <div
+                id="headerStatus"
+                class="header-status"
+            >
+                載入中
+            </div>
+
+        </header>
+
+
+        <main id="app">
+
+            <section
+                id="page-home"
+                class="page active"
+            ></section>
+
+            <section
+                id="page-top10"
+                class="page"
+            ></section>
+
+            <section
+                id="page-research"
+                class="page"
+            ></section>
+
+            <section
+                id="page-watchlist"
+                class="page"
+            ></section>
+
+        </main>
+
+
+        <nav class="bottom-nav">
+
+            <button
+                class="nav-item active"
+                data-page="home"
+            >
+                <span class="nav-icon">⌂</span>
+                <span>首頁</span>
+            </button>
+
+            <button
+                class="nav-item"
+                data-page="top10"
+            >
+                <span class="nav-icon">★</span>
+                <span>TOP10</span>
+            </button>
+
+            <button
+                class="nav-item"
+                data-page="research"
+            >
+                <span class="nav-icon">⌕</span>
+                <span>研究</span>
+            </button>
+
+            <button
+                class="nav-item"
+                data-page="watchlist"
+            >
+                <span class="nav-icon">♡</span>
+                <span>自選</span>
+            </button>
+
+        </nav>
+
+    </div>
+
+
+    <div
+        id="detailOverlay"
+        class="detail-overlay"
+    >
+        <div class="detail-sheet">
+
+            <div class="detail-handle"></div>
+
+            <div
+                id="detailContent"
+                class="detail-content"
+            ></div>
+
+        </div>
+    </div>
+
+
+    <script src="./app.js"></script>
+
+</body>
+</html>

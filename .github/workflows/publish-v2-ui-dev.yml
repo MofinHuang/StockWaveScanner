@@ -1,0 +1,249 @@
+name: StockWaveScanner V2 UI DEV
+
+on:
+
+  workflow_dispatch:
+
+  schedule:
+
+    # Taiwan Monday-Friday 20:30
+    # UTC Monday-Friday 12:30
+    - cron: "30 12 * * 1-5"
+
+  push:
+
+    branches:
+      - main
+
+    paths:
+      - "docs/**"
+      - "scripts/export_v2_ui_snapshot.py"
+      - "scripts/build_v2_scores.py"
+      - ".github/workflows/publish-v2-ui-dev.yml"
+
+
+permissions:
+  contents: read
+
+
+concurrency:
+
+  group: stockwavescanner-v2-ui-dev
+
+  cancel-in-progress: true
+
+
+jobs:
+
+  build-ui:
+
+    name: Build V2 UI
+
+    runs-on: windows-latest
+
+    env:
+
+      PYTHONUNBUFFERED: "1"
+
+      PYTHONUTF8: "1"
+
+      PYTHONIOENCODING: "utf-8"
+
+      TURSO_DEV_DATABASE_URL:
+        ${{ secrets.TURSO_DEV_DATABASE_URL }}
+
+      TURSO_DEV_AUTH_TOKEN:
+        ${{ secrets.TURSO_DEV_AUTH_TOKEN }}
+
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+
+        with:
+
+          python-version: "3.13"
+
+          cache: "pip"
+
+          cache-dependency-path:
+            requirements-daily.txt
+
+
+      - name: Install dependencies
+        shell: bash
+
+        run: |
+
+          python -m pip install --upgrade pip
+
+          python -m pip install \
+            -r requirements-daily.txt
+
+
+      - name: Validate DEV secrets
+        shell: bash
+
+        run: |
+
+          if [ -z "$TURSO_DEV_DATABASE_URL" ]; then
+
+            echo "ERROR: TURSO_DEV_DATABASE_URL missing"
+
+            exit 1
+
+          fi
+
+
+          if [ -z "$TURSO_DEV_AUTH_TOKEN" ]; then
+
+            echo "ERROR: TURSO_DEV_AUTH_TOKEN missing"
+
+            exit 1
+
+          fi
+
+
+          case "$TURSO_DEV_DATABASE_URL" in
+
+            *stockwave-dev*)
+              ;;
+
+            *)
+
+              echo "ERROR: Database is not stockwave-dev"
+
+              exit 1
+
+              ;;
+
+          esac
+
+
+          case "$TURSO_DEV_DATABASE_URL" in
+
+            *stockwave-prod*)
+
+              echo "ERROR: PROD database detected"
+
+              exit 1
+
+              ;;
+
+          esac
+
+
+          echo "DEV database safety check PASS"
+
+
+      - name: Export V2 UI snapshot
+        shell: bash
+
+        run: |
+
+          python \
+            scripts/export_v2_ui_snapshot.py
+
+
+      - name: Build V2 scores
+        shell: bash
+
+        run: |
+
+          python \
+            scripts/build_v2_scores.py
+
+
+      - name: Show generated files
+        shell: bash
+
+        run: |
+
+          echo "Generated UI data:"
+
+          ls -lah \
+            docs/data/latest
+
+
+      - name: Upload generated site
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name:
+            stockwavescanner-v2-ui
+
+          path:
+            docs
+
+          if-no-files-found:
+            error
+
+          retention-days:
+            1
+
+
+  deploy-pages:
+
+    name: Deploy GitHub Pages
+
+    needs:
+      - build-ui
+
+    runs-on:
+      ubuntu-latest
+
+    permissions:
+
+      contents: read
+
+      pages: write
+
+      id-token: write
+
+
+    environment:
+
+      name:
+        github-pages
+
+      url:
+        ${{ steps.deployment.outputs.page_url }}
+
+
+    steps:
+
+      - name: Download generated site
+        uses: actions/download-artifact@v4
+
+        with:
+
+          name:
+            stockwavescanner-v2-ui
+
+          path:
+            docs
+
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+
+        with:
+
+          path:
+            docs
+
+
+      - name: Deploy GitHub Pages
+        id: deployment
+
+        uses: actions/deploy-pages@v4
