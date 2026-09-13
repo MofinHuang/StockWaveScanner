@@ -1,0 +1,91 @@
+name: StockWaveScanner V2 TDCC Weekly DEV
+
+on:
+  schedule:
+    # Taiwan Saturday 09:17
+    # UTC Saturday 01:17
+    - cron: "17 1 * * 6"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stockwavescanner-tdcc-weekly-dev
+  cancel-in-progress: false
+
+jobs:
+  tdcc-weekly:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+      TURSO_DEV_DATABASE_URL: ${{ secrets.TURSO_DEV_DATABASE_URL }}
+      TURSO_DEV_AUTH_TOKEN: ${{ secrets.TURSO_DEV_AUTH_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Python runtime
+        run: |
+          python --version
+          python -c "import sys; print('Python executable:', sys.executable)"
+          python -c "print('UTF-8 test: 集保股權分散表 / 台泥 / 亞泥')"
+
+      - name: Validate DEV secrets
+        run: |
+          if [ -z "$TURSO_DEV_DATABASE_URL" ]; then
+            echo "ERROR: TURSO_DEV_DATABASE_URL is missing"
+            exit 1
+          fi
+
+          if [ -z "$TURSO_DEV_AUTH_TOKEN" ]; then
+            echo "ERROR: TURSO_DEV_AUTH_TOKEN is missing"
+            exit 1
+          fi
+
+          case "$TURSO_DEV_DATABASE_URL" in
+            *stockwave-dev*)
+              ;;
+            *)
+              echo "ERROR: Database is not stockwave-dev"
+              exit 1
+              ;;
+          esac
+
+          case "$TURSO_DEV_DATABASE_URL" in
+            *stockwave-prod*)
+              echo "ERROR: PROD database detected"
+              exit 1
+              ;;
+          esac
+
+          echo "DEV database safety check PASS"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-daily.txt
+
+      - name: Compile TDCC pipeline
+        run: |
+          python -m py_compile scripts/sync_tdcc_incremental.py
+
+      - name: Run TDCC weekly incremental pipeline
+        run: |
+          python scripts/sync_tdcc_incremental.py

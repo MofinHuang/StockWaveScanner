@@ -1,0 +1,95 @@
+name: StockWaveScanner V2 Monthly Revenue DEV
+
+on:
+  schedule:
+    # Taiwan Monday-Friday 19:17
+    # UTC Monday-Friday 11:17
+    #
+    # Source is checked every weekday.
+    # If no new revenue month is available,
+    # the incremental script safely no-ops.
+    - cron: "17 11 * * 1-5"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stockwavescanner-monthly-revenue-dev
+  cancel-in-progress: false
+
+jobs:
+  monthly-revenue:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+      TURSO_DEV_DATABASE_URL: ${{ secrets.TURSO_DEV_DATABASE_URL }}
+      TURSO_DEV_AUTH_TOKEN: ${{ secrets.TURSO_DEV_AUTH_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Python runtime
+        run: |
+          python --version
+          python -c "import sys; print('Python executable:', sys.executable)"
+          python -c "print('UTF-8 test: 月營收 / 台泥 / 上櫃')"
+
+      - name: Validate DEV secrets
+        run: |
+          if [ -z "$TURSO_DEV_DATABASE_URL" ]; then
+            echo "ERROR: TURSO_DEV_DATABASE_URL is missing"
+            exit 1
+          fi
+
+          if [ -z "$TURSO_DEV_AUTH_TOKEN" ]; then
+            echo "ERROR: TURSO_DEV_AUTH_TOKEN is missing"
+            exit 1
+          fi
+
+          case "$TURSO_DEV_DATABASE_URL" in
+            *stockwave-dev*)
+              ;;
+            *)
+              echo "ERROR: Database is not stockwave-dev"
+              exit 1
+              ;;
+          esac
+
+          case "$TURSO_DEV_DATABASE_URL" in
+            *stockwave-prod*)
+              echo "ERROR: PROD database detected"
+              exit 1
+              ;;
+          esac
+
+          echo "DEV database safety check PASS"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-daily.txt
+
+      - name: Compile Monthly Revenue pipeline
+        run: |
+          python -m py_compile scripts/sync_monthly_revenue_incremental.py
+
+      - name: Run Monthly Revenue incremental pipeline
+        run: |
+          python scripts/sync_monthly_revenue_incremental.py
