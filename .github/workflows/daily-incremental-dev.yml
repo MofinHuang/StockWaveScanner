@@ -13,6 +13,12 @@ on:
         required: false
         type: string
 
+      skip_stock_master:
+        description: "Skip Stock Master for manual retry/debug"
+        required: false
+        type: boolean
+        default: false
+
 
 permissions:
   contents: read
@@ -28,30 +34,14 @@ jobs:
 
     name: Daily Incremental DEV
 
-    # ========================================================
-    # IMPORTANT
-    #
-    # TPEx official endpoints currently have TLS certificate
-    # chain compatibility issues on Ubuntu/OpenSSL.
-    #
-    # StockWaveScanner is developed and validated on Windows,
-    # where TPEx official sources work correctly through the
-    # Windows certificate / Schannel environment.
+    # TPEx official endpoints currently work reliably
+    # through the Windows TLS / Schannel environment.
     #
     # Do NOT disable TLS certificate verification.
-    # ========================================================
-
     runs-on: windows-latest
 
     timeout-minutes: 30
 
-
-    # ========================================================
-    # All command blocks use Git Bash.
-    #
-    # This keeps workflow commands consistent between
-    # Windows GitHub Runner and our shell scripts below.
-    # ========================================================
 
     defaults:
       run:
@@ -60,7 +50,17 @@ jobs:
 
     env:
 
+      # ======================================================
+      # Python UTF-8
+      #
+      # Windows GitHub Runner console may otherwise use a
+      # legacy code page and fail when printing Chinese names
+      # such as 台泥 / 亞泥.
+      # ======================================================
+
       PYTHONUNBUFFERED: "1"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
 
       TURSO_DEV_DATABASE_URL: ${{ secrets.TURSO_DEV_DATABASE_URL }}
       TURSO_DEV_AUTH_TOKEN: ${{ secrets.TURSO_DEV_AUTH_TOKEN }}
@@ -83,11 +83,8 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
         with:
-
           python-version: "3.13"
-
           cache: "pip"
-
           cache-dependency-path: requirements-daily.txt
 
 
@@ -97,80 +94,53 @@ jobs:
 
       - name: Show runtime information
         run: |
-
           python --version
 
           python -c "import sys; print('Python executable:', sys.executable)"
+          python -c "import sys; print('stdout encoding:', sys.stdout.encoding)"
+          python -c "print('UTF-8 test: 台泥 / 亞泥 / 上櫃')"
 
           pip --version
 
           echo "Runner OS: $RUNNER_OS"
-
           echo "Repository: $GITHUB_REPOSITORY"
-
           echo "Branch: $GITHUB_REF_NAME"
 
 
       # ======================================================
       # DEV Secret Preflight
-      #
-      # Only validate existence.
-      # Never print the token.
       # ======================================================
 
       - name: Validate DEV secrets
         run: |
 
           if [ -z "$TURSO_DEV_DATABASE_URL" ]; then
-
             echo "::error::Missing GitHub Secret: TURSO_DEV_DATABASE_URL"
-
             exit 1
-
           fi
-
 
           if [ -z "$TURSO_DEV_AUTH_TOKEN" ]; then
-
             echo "::error::Missing GitHub Secret: TURSO_DEV_AUTH_TOKEN"
-
             exit 1
-
           fi
 
-
           case "$TURSO_DEV_DATABASE_URL" in
-
             *stockwave-dev*)
-
               ;;
-
             *)
-
               echo "::error::TURSO_DEV_DATABASE_URL does not point to stockwave-dev"
-
               exit 1
-
               ;;
-
           esac
-
 
           case "$TURSO_DEV_DATABASE_URL" in
-
             *stockwave-prod*)
-
               echo "::error::PROD database detected. Workflow aborted."
-
               exit 1
-
               ;;
-
           esac
-
 
           echo "[PASS] DEV secrets configured"
-
           echo "[PASS] PROD protection"
 
 
@@ -180,9 +150,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-
           python -m pip install --upgrade pip
-
           python -m pip install -r requirements-daily.txt
 
 
@@ -192,7 +160,6 @@ jobs:
 
       - name: Validate Python dependencies
         run: |
-
           python -c "import libsql; import dotenv; print('[PASS] libsql import'); print('[PASS] python-dotenv import')"
 
 
@@ -202,7 +169,6 @@ jobs:
 
       - name: Validate Daily Pipeline scripts
         run: |
-
           python -m py_compile \
             scripts/sync_stock_master.py \
             scripts/sync_market_index_incremental.py \
@@ -220,23 +186,44 @@ jobs:
       - name: Run Daily Incremental Pipeline
         run: |
 
-          THROUGH="${{ github.event.inputs.through }}"
+          THROUGH="${{ inputs.through }}"
+          SKIP_STOCK_MASTER="${{ inputs.skip_stock_master }}"
+
+          ARGS=()
 
 
           if [ -n "$THROUGH" ]; then
 
             echo "Manual through date: $THROUGH"
 
-            python scripts/daily_incremental_pipeline.py \
-              --through "$THROUGH"
+            ARGS+=(
+              --through
+              "$THROUGH"
+            )
 
           else
 
             echo "Through date: Taiwan today"
 
-            python scripts/daily_incremental_pipeline.py
+          fi
+
+
+          if [ "$SKIP_STOCK_MASTER" = "true" ]; then
+
+            echo "Stock Master: SKIPPED for manual retry"
+
+            ARGS+=(
+              --skip-stock-master
+            )
+
+          else
+
+            echo "Stock Master: ENABLED"
 
           fi
+
+
+          python scripts/daily_incremental_pipeline.py "${ARGS[@]}"
 
 
       # ======================================================
@@ -248,11 +235,7 @@ jobs:
         run: |
 
           echo "========================================"
-
           echo "StockWaveScanner V2"
-
           echo "Daily Incremental DEV completed"
-
           echo "Runner: Windows"
-
           echo "========================================"
