@@ -1,152 +1,442 @@
-# StockWaveScanner — GitHub Daily MVP
+# StockWaveScanner V2
 
-這一版的目標只有三件事：
+台股研究與波段選股系統。
 
-1. **GitHub Actions 每個交易日晚間自動更新資料**
-2. **SQLite 資料庫跨次執行保留**
-3. **手機直接用 GitHub Pages 看 Coverage、策略 PASS 與 Ranking**
+StockWaveScanner V2 以「資料先累積、UI 持續可用、評分依資料完整度自動啟用」為核心設計，整合每日行情、法人籌碼、TDCC 集保、月營收、季度財報與市場指數資料，並透過 GitHub Actions 自動更新資料與發布 GitHub Pages Research Dashboard。
 
-既有 `Sleep / Chip / Foreign / TDCC / Breakout` 策略規則不在這個 MVP 中改動；`AGENTS.md` 仍是策略與資料語意的約束來源。
+> 目前專案仍處於 V2 DEV 階段。  
+> 所有開發、資料回補與 UI Export 僅允許操作 Turso DEV。  
+> 禁止操作 PROD。
 
-## 架構
+---
 
-```text
-GitHub Actions (Asia/Taipei)
-  18:37 weekday primary run
-  20:37 weekday retry
-        |
-        v
-GitHub Release: data-latest / stocks-db.zip
-        |
-        v
-Price -> Foreign -> TDCC latest -> Ranking snapshot
-        |
-        +--> 更新 stocks-db.zip
-        +--> GitHub Pages 手機 Dashboard
-        +--> ops/latest-run.json
-```
-
-第二次排程會沿用 crawler 現有 `crawl_logs`；已經 `SUCCESS` 的單日資料會 skip，因此可作為 retry。
-
-## 第一次啟用（不需要會 Python）
-
-### 1. 準備既有資料庫
-
-在原本可正常使用的 StockWaveScanner 電腦找到：
+## V2 架構
 
 ```text
-data\stocks.db
-```
+Official Data Sources
+        │
+        ▼
+GitHub Actions
+        │
+        ├─ Daily Incremental
+        ├─ TDCC Weekly
+        ├─ Monthly Revenue
+        ├─ Quarterly Financial
+        └─ Historical Backfill
+        │
+        ▼
+Turso DEV
+stockwave-dev
+        │
+        ▼
+scripts/export_v2_ui_snapshot.py
+        │
+        ▼
+docs/data/latest/*.json
+        │
+        ▼
+scripts/build_v2_scores.py
+        │
+        ▼
+GitHub Pages
+StockWaveScanner V2 Research Dashboard
 
-Windows 11：在 `stocks.db` 上按右鍵 → **壓縮成 ZIP 檔案**。
+前端不直接連線 Turso。
 
-ZIP 檔名請改成：
+GitHub Actions 會先由 Turso DEV 匯出靜態 JSON Snapshot，再計算 V2 Score，最後發布至 GitHub Pages。
 
-```text
-stocks-db.zip
-```
+V2 Dashboard
 
-ZIP 裡面應直接包含：
+GitHub Pages：
 
-```text
-stocks.db
-```
+https://mofinhuang.github.io/StockWaveScanner/
 
-> Public repository 的 Release asset 也是公開資料。請確認 SQLite 裡只有可公開的市場資料，不含密碼、token、私人資訊。
+目前主要功能：
 
-### 2. 建立 GitHub Release
+首頁市場狀態
+TAIEX / TPEX 市場指數
+資料完整度
+Sync State
+股票搜尋
+股票列表
+個股研究明細
+技術資料
+法人籌碼
+TDCC 集保資料
+月營收
+季財報
+Strength Score
+Timing Score
+Buy Priority
+Stage
+TOP10
+自選股票
+持股成本
+未實現損益
+資料來源與狀態
+Stock Master
 
-在 GitHub repository：
+主要來源：
 
-**Releases → Draft a new release**
+MOPS 官方資料
 
-設定：
+目前涵蓋：
 
-```text
-Tag:   data-latest
-Title: StockWaveScanner persistent database
-```
+TWSE
+TPEx
+COMMON_STOCK
+Daily Price
 
-上傳 `stocks-db.zip` 後 Publish release。
+每日 Incremental 已完成並由 GitHub Actions 執行。
 
-這個 Release 之後會由 GitHub Actions 自動覆蓋更新，不需要每天手動上傳。
+Historical Price 已完成回補：
 
-### 3. 開啟 GitHub Pages
+2024-09-02 ~ 2026-09-11
 
-Repository：
+Historical Price 不需要重新完整 Backfill。
 
-**Settings → Pages → Build and deployment → Source → GitHub Actions**
+Institutional
 
-### 4. 第一次手動測試
+每日法人資料 Incremental 已完成。
 
-Repository：
+包含 TWSE / TPEx 法人買賣資料。
 
-**Actions → Daily StockWaveScanner → Run workflow**
+Market Index
 
-`date` 留空，按 **Run workflow**。
+TAIEX / TPEX Market Index Incremental 已完成。
 
-成功後，GitHub Pages 會出現手機版網站。
+市場歷史資料會持續累積。
 
-## 每日自動時間
+歷史資料不足時：
 
-`.github/workflows/daily.yml`：
+WAITING_HISTORY
 
-- 星期一～五 **18:37 Asia/Taipei**：primary
-- 星期一～五 **20:37 Asia/Taipei**：retry
+不會將缺少的歷史資料視為 0。
 
-GitHub 排程不是即時交易系統，實際開始時間可能因 runner 負載稍有延遲。
+TDCC
 
-## 每日執行順序
+TDCC Weekly Incremental 已完成。
 
-```text
-validate_db
-price_twse
-price_tpex
-foreign_twse
-foreign_tpex
-tdcc_latest
-ranking_snapshot
-```
+TWSE + TPEx COMMON_STOCK 目前已可取得最新集保資料。
 
-任一步驟發生錯誤後，後續步驟會標記 `BLOCKED`。手機頁面會顯示本次 `SUCCESS / ERROR / BLOCKED` 狀態；GitHub Actions 本身也會顯示失敗。
+Workflow：
 
-## 日期安全
+.github/workflows/tdcc-weekly-dev.yml
+Monthly Revenue
 
-新的單日 entrypoint 都要求顯式日期，例如：
+月營收 Incremental 已完成。
 
-```bash
-python scripts/sync_twse_market_daily_one_day.py --date 2026-08-21
-python scripts/sync_tpex_market_daily_one_day.py --date 2026-08-21
-python scripts/sync_twse_market_institutional_one_day.py --date 2026-08-21
-python scripts/sync_tpex_market_institutional.py --date 2026-08-21
-```
+Historical Backfill 已完成：
 
-Ranking 新增 `as_of_date` 邊界，Price / Foreign / TDCC 只讀取 reference date 以前資料，不因 DB 內存在未來資料污染 snapshot。
+2024-09 ~ 2026-08
 
-TDCC `latest` 官方 endpoint 沒有歷史日期參數。`--run-date` 只用來記錄「本次排程日」；真正的 TDCC `data_date` 仍以官方 response 為準，沒有 zero inference 或歷史偽造。
+歷史月營收不需要重新完整 Backfill。
 
-## 手機頁面資料
+Quarterly Financial
 
-GitHub Pages 會提供：
+季度財報 Incremental 已完成。
 
-- `index.html` — responsive dashboard
-- `summary.json` — coverage / PASS summary
-- `status.json` — 每日流程狀態
-- `ranking.json` — ranking rows
+目前主要來源：
 
-Repository 本身另外保留輕量：
+MOPS / MopsFin
 
-- `ops/latest-run.json`
-- `ops/latest-summary.json`
+財報語意為：
 
-SQLite DB 不 commit 到 Git；它只存在 `data-latest` Release asset。
+累計季報
 
-## 目前刻意不做
+不是單季數值。
 
-- 不改 Sleep / Chip / Foreign / TDCC / Breakout 門檻
-- 不把 Final PASS=0 當成資料錯誤
-- 不新增 TDCC history refetch
-- 不為 TPEx ZERO_INFERRED 製造 `foreign_buy / foreign_sell`
-- 不用 FastAPI / Uvicorn / VPS / systemd
+Historical Backfill 採由近至遠方式逐步補齊。
 
-詳細資料語意請以 `AGENTS.md` 為準。
+目前目標：
+
+2026-Q2
+2026-Q1
+2025-Q4
+2025-Q3
+2025-Q2
+2025-Q1
+2024-Q4
+2024-Q3
+
+由 GitHub Actions 每日分 Slice 執行，不再由本機長時間完整回補。
+
+Quarterly Financial 特殊格式
+
+MOPS 財報並非所有公司都使用相同 Accounting Label 結構。
+
+一般產業可使用 GENERAL 財報結構，但銀行、保險、金控等公司可能採用不同格式。
+
+系統目前以 MopsFin 實際 Accounting Label 判斷。
+
+遇到非 GENERAL 財報：
+
+[SKIP] non-GENERAL report
+
+不會：
+
+強行套用 GENERAL 格式
+將不存在的財報欄位轉成 0
+因缺少財報而給股票低分
+Historical Backfill
+
+季度歷史財報採 Slice Queue 架構。
+
+主要程式：
+
+scripts/backfill_quarterly_financial_slice.py
+scripts/run_historical_backfill_queue.py
+
+Workflow：
+
+.github/workflows/historical-backfill-dev.yml
+
+基本策略：
+
+NEWEST -> OLDEST
+
+預設：
+
+lookback_quarters = 8
+slice_size = 100
+max_slices = 4
+
+每個 Slice 約處理 100 家公司。
+
+內部 Fetch Batch：
+
+10 stocks
+
+每完成一個 Batch 就直接寫入 Turso DEV，因此不需要等待整個市場完成才保存結果。
+
+進度記錄於：
+
+sync_state
+
+例如：
+
+qfin_hist_2026_q2_twse
+qfin_hist_2026_q2_tpex
+qfin_hist_2026_q1_twse
+
+狀態可能包含：
+
+PARTIAL
+SUCCESS
+
+records_processed 作為 Cursor，下一次排程會從尚未完成的位置繼續。
+
+V2 Score Engine
+
+Score Engine：
+
+scripts/build_v2_scores.py
+
+目前 V2 Provisional Score：
+
+Strength
+Trend                  30%
+Relative Strength      20%
+Momentum + Volume      15%
+Chip                   20%
+Fundamental            15%
+Buy Priority
+Strength               65%
+Timing                 35%
+Data Readiness
+
+StockWaveScanner V2 的核心原則：
+
+Missing Data != Zero Score
+
+缺資料不能被當成低分。
+
+當：
+
+readiness.overall != READY
+
+則：
+
+Strength     = NULL
+Timing       = NULL
+Buy Priority = NULL
+Stage        = WAITING_DATA
+
+該股票：
+
+不進入 TOP10
+
+UI 顯示：
+
+--
+WAITING_DATA
+資料補齊中
+
+等資料完整後，Score Engine 才會自動開始評分。
+
+UI Snapshot
+
+Turso DEV 不直接暴露給 Browser。
+
+UI 資料流程：
+
+Turso DEV
+    ↓
+scripts/export_v2_ui_snapshot.py
+    ↓
+docs/data/latest/*.json
+    ↓
+scripts/build_v2_scores.py
+    ↓
+GitHub Pages
+
+docs/data/latest/ 為 GitHub Actions 動態產生資料，不 Commit 至 Repository。
+
+V2 UI Workflow
+
+Workflow：
+
+.github/workflows/publish-v2-ui-dev.yml
+
+流程：
+
+Checkout
+    ↓
+Python
+    ↓
+Install requirements-daily.txt
+    ↓
+Validate DEV Secrets
+    ↓
+Export V2 UI Snapshot
+    ↓
+Build V2 Scores
+    ↓
+Upload Artifact
+    ↓
+Deploy GitHub Pages
+開發環境
+
+Local Repository：
+
+D:\002.Programs\002.Others\Python\StockWaveScanner
+
+Branch：
+
+main
+
+Windows 本機 Python 一律使用：
+
+.\.venv\Scripts\python.exe
+
+不要使用：
+
+python
+py -3.13
+Turso Environment
+DEV
+stockwave-dev
+
+目前：
+
+Daily
+Backfill
+V2 UI
+Score Engine
+GitHub Actions
+
+全部僅允許操作 DEV。
+
+PROD
+stockwave-prod
+
+目前禁止操作。
+
+Secrets
+
+GitHub Actions 使用：
+
+TURSO_DEV_DATABASE_URL
+TURSO_DEV_AUTH_TOKEN
+
+Repository 不保存 Token。
+
+以下檔案禁止 Commit：
+
+.env
+GO.md
+requirements-daily.txt
+
+目前主要 Runtime Dependency：
+
+libsql==0.1.11
+python-dotenv==1.2.3
+tzdata==2025.2
+開發策略
+
+V2 現階段採 UI First：
+
+UI 先上線
+    ↓
+目前已有資料先顯示
+    ↓
+缺資料顯示 WAITING_DATA
+    ↓
+GitHub Actions 每日補歷史資料
+    ↓
+UI 每次重新 Export
+    ↓
+資料完整後自動計算 Score
+    ↓
+TOP10 自動產生
+
+不再等待所有 Historical Backfill 完成後才開發 UI。
+
+開發原則
+UI 優先
+Incremental 優先
+Backfill 由近而遠
+長時間工作交給 GitHub Actions
+缺資料不得轉成 0
+不因缺資料給低分
+不重跑已完成的 Historical Dataset
+發生錯誤時只處理第一個 Error
+完成功能區塊後才 Commit
+禁止 git push --force
+除非明確確認安全，禁止 git reset --hard
+.env 不可 Commit
+GO.md 不可 Commit
+Turso PROD 不可操作
+Current Stage
+
+目前 V2 Dashboard 已成功部署。
+
+已確認：
+
+首頁                  PASS
+市場資料              PASS
+股票搜尋              PASS
+個股明細              PASS
+資料完整度            PASS
+WAITING_DATA Logic    PASS
+
+季度歷史財報仍透過 Historical Backfill DEV 持續補齊。
+
+下一階段：
+
+Quarterly Financial History
+        ↓
+Readiness READY
+        ↓
+Score Generation
+        ↓
+TOP10
+        ↓
+Score Model Calibration
+        ↓
+Backtest
+Disclaimer
+
+StockWaveScanner 為資料研究與程式開發專案。
+
+系統產生之 Score、Ranking、TOP10 與其他研究資訊僅供研究參考，不構成任何投資建議。
