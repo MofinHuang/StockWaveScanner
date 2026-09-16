@@ -606,8 +606,11 @@ function renderTop10() {
     ) {
 
         const readiness =
-            state.top10
-                ?.readiness
+            state.top10?.readiness
+            ||
+            state.status
+                ?.coverage
+                ?.overall
             || {};
 
         page.innerHTML = `
@@ -642,7 +645,6 @@ function renderTop10() {
                         margin-top: 16px;
                     "
                 >
-
                     完整資料：
                     ${
                         readiness.ready
@@ -669,7 +671,6 @@ function renderTop10() {
         </div>
 
         <div class="stock-list">
-
             ${
                 rows
                 .map(
@@ -689,7 +690,6 @@ function renderTop10() {
                 )
                 .join("")
             }
-
         </div>
     `;
 
