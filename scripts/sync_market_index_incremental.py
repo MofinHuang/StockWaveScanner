@@ -116,23 +116,23 @@ class IndexRow:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Incrementally sync TWSE / TPEx "
-            "market indices into Turso DEV."
+            "Incrementally sync or historically backfill "
+            "TWSE / TPEx market indices into Turso DEV."
         )
     )
 
-    group = parser.add_mutually_exclusive_group()
-
-    group.add_argument(
+    parser.add_argument(
         "--through",
         metavar="YYYY-MM-DD",
         help=(
-            "Sync through this Taiwan calendar date. "
+            "Sync/backfill through this Taiwan calendar date. "
             "Default: today UTC+8."
         ),
     )
 
-    group.add_argument(
+    mode_group = parser.add_mutually_exclusive_group()
+
+    mode_group.add_argument(
         "--validate-date",
         metavar="YYYY-MM-DD",
         help=(
@@ -141,7 +141,24 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
-    return parser.parse_args()
+    mode_group.add_argument(
+        "--backfill-from",
+        metavar="YYYY-MM-DD",
+        help=(
+            "DEV ONLY: historically backfill missing market-index "
+            "rows from this date through --through. Existing rows "
+            "are preserved and Daily Incremental sync_state is not changed."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    if args.validate_date and args.through:
+        parser.error(
+            "--through cannot be used with --validate-date"
+        )
+
+    return args
 
 
 # ============================================================
@@ -1408,6 +1425,104 @@ def get_latest_index_date(
     return str(value)
 
 
+def get_existing_index_dates(
+    conn,
+    market: str,
+    start: date,
+    through: date,
+) -> set[str]:
+
+    rows = (
+        conn
+        .execute(
+            """
+            SELECT trade_date
+            FROM market_index_daily
+            WHERE market = ?
+              AND index_code = ?
+              AND trade_date >= ?
+              AND trade_date <= ?
+            """,
+            (
+                market,
+                INDEX_CODES[market],
+                start.isoformat(),
+                through.isoformat(),
+            ),
+        )
+        .fetchall()
+    )
+
+    return {
+        str(row[0])
+        for row in rows
+    }
+
+
+def get_index_stats(
+    conn,
+    market: str,
+) -> tuple[int, str | None, str | None]:
+
+    row = (
+        conn
+        .execute(
+            """
+            SELECT
+                COUNT(*),
+                MIN(trade_date),
+                MAX(trade_date)
+            FROM market_index_daily
+            WHERE market = ?
+              AND index_code = ?
+            """,
+            (
+                market,
+                INDEX_CODES[market],
+            ),
+        )
+        .fetchone()
+    )
+
+    if row is None:
+        return 0, None, None
+
+    count = int(row[0] or 0)
+    min_date = (
+        str(row[1])
+        if row[1] is not None
+        else None
+    )
+    max_date = (
+        str(row[2])
+        if row[2] is not None
+        else None
+    )
+
+    return count, min_date, max_date
+
+
+def get_sync_state_last_data_date(
+    conn,
+    market: str,
+) -> str | None:
+
+    value = scalar(
+        conn,
+        """
+        SELECT last_data_date
+        FROM sync_state
+        WHERE dataset = ?
+        """,
+        (DATASETS[market],),
+    )
+
+    if value is None:
+        return None
+
+    return str(value)
+
+
 # ============================================================
 # TURSO WRITE
 # ============================================================
@@ -1687,6 +1802,68 @@ def commit_rows(
     )
 
 
+def commit_backfill_date(
+    conn,
+    rows: dict[str, IndexRow],
+) -> None:
+
+    if set(rows) != {
+        "TWSE",
+        "TPEX",
+    }:
+        raise RuntimeError(
+            "Backfill requires both TWSE and TPEx rows "
+            "for the same trading date"
+        )
+
+    trade_dates = {
+        row.trade_date
+        for row in rows.values()
+    }
+
+    if len(trade_dates) != 1:
+        raise RuntimeError(
+            "Backfill TWSE / TPEx rows have mismatched dates"
+        )
+
+    conn.execute(
+        "BEGIN"
+    )
+
+    try:
+
+        for market in (
+            "TWSE",
+            "TPEX",
+        ):
+
+            insert_index_row(
+                conn,
+                rows[market],
+            )
+
+        conn.commit()
+
+    except BaseException:
+
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+        raise
+
+    for market in (
+        "TWSE",
+        "TPEX",
+    ):
+
+        verify_written_row(
+            conn,
+            rows[market],
+        )
+
+
 def mark_run_status(
     conn,
     cursors: dict[
@@ -1861,6 +2038,272 @@ def run_validation(
 
     print(
         "[PASS] No database rows were written"
+    )
+
+
+# ============================================================
+# HISTORICAL BACKFILL
+# ============================================================
+
+
+def run_backfill(
+    conn,
+    start: date,
+    through: date,
+) -> None:
+
+    if start > through:
+        raise RuntimeError(
+            "Backfill start date cannot be later than through date"
+        )
+
+    print()
+    print("=" * 76)
+    print(
+        "MARKET INDEX HISTORICAL BACKFILL"
+    )
+    print("=" * 76)
+
+    print(
+        "Backfill From : "
+        f"{start.isoformat()}"
+    )
+    print(
+        "Through Date  : "
+        f"{through.isoformat()}"
+    )
+    print(
+        "Target        : DEV"
+    )
+    print(
+        "PROD Access   : DISABLED"
+    )
+    print(
+        "Sync State    : PRESERVED"
+    )
+
+    sync_state_before = {
+        market: get_sync_state_last_data_date(
+            conn,
+            market,
+        )
+        for market in (
+            "TWSE",
+            "TPEX",
+        )
+    }
+
+    stats_before = {
+        market: get_index_stats(
+            conn,
+            market,
+        )
+        for market in (
+            "TWSE",
+            "TPEX",
+        )
+    }
+
+    existing_dates = {
+        market: get_existing_index_dates(
+            conn,
+            market,
+            start,
+            through,
+        )
+        for market in (
+            "TWSE",
+            "TPEX",
+        )
+    }
+
+    source_rows: dict[
+        str,
+        list[IndexRow],
+    ] = {}
+
+    for index, market in enumerate(
+        (
+            "TWSE",
+            "TPEX",
+        )
+    ):
+
+        if index:
+            time.sleep(
+                REQUEST_DELAY
+            )
+
+        source_rows[market] = (
+            fetch_market_range(
+                market,
+                start,
+                through,
+            )
+        )
+
+    rows_by_date = {
+        market: {
+            row.trade_date: row
+            for row in rows
+        }
+        for market, rows in source_rows.items()
+    }
+
+    common_dates = sorted(
+        set(rows_by_date["TWSE"])
+        &
+        set(rows_by_date["TPEX"])
+    )
+
+    print()
+    print(
+        "TWSE Source Rows : "
+        f"{len(source_rows['TWSE']):,}"
+    )
+    print(
+        "TPEx Source Rows : "
+        f"{len(source_rows['TPEX']):,}"
+    )
+    print(
+        "Common Dates     : "
+        f"{len(common_dates):,}"
+    )
+
+    pending_dates = [
+        trade_date
+        for trade_date in common_dates
+        if (
+            trade_date
+            not in existing_dates["TWSE"]
+            or
+            trade_date
+            not in existing_dates["TPEX"]
+        )
+    ]
+
+    if not pending_dates:
+
+        print()
+        print(
+            "[PASS] No missing common trading-date "
+            "index rows in requested range"
+        )
+
+    else:
+
+        print(
+            "Pending Dates   : "
+            f"{len(pending_dates):,} "
+            f"| {pending_dates[0]} .. {pending_dates[-1]}"
+        )
+
+        inserted = {
+            "TWSE": 0,
+            "TPEX": 0,
+        }
+
+        for seq, trade_date in enumerate(
+            pending_dates,
+            start=1,
+        ):
+
+            rows = {
+                "TWSE": rows_by_date["TWSE"][trade_date],
+                "TPEX": rows_by_date["TPEX"][trade_date],
+            }
+
+            was_missing = {
+                market: (
+                    trade_date
+                    not in existing_dates[market]
+                )
+                for market in (
+                    "TWSE",
+                    "TPEX",
+                )
+            }
+
+            commit_backfill_date(
+                conn,
+                rows,
+            )
+
+            for market in (
+                "TWSE",
+                "TPEX",
+            ):
+
+                if was_missing[market]:
+                    inserted[market] += 1
+                    existing_dates[market].add(
+                        trade_date
+                    )
+
+            print(
+                f"[{seq:03d}/{len(pending_dates):03d}] "
+                f"{trade_date} "
+                "| TWSE=OK | TPEX=OK"
+            )
+
+    sync_state_after = {
+        market: get_sync_state_last_data_date(
+            conn,
+            market,
+        )
+        for market in (
+            "TWSE",
+            "TPEX",
+        )
+    }
+
+    if sync_state_after != sync_state_before:
+        raise RuntimeError(
+            "SAFETY STOP: historical backfill changed "
+            "Daily Incremental sync_state"
+        )
+
+    stats_after = {
+        market: get_index_stats(
+            conn,
+            market,
+        )
+        for market in (
+            "TWSE",
+            "TPEX",
+        )
+    }
+
+    print()
+    print("=" * 76)
+    print(
+        "MARKET INDEX HISTORICAL BACKFILL RESULT"
+    )
+    print("=" * 76)
+
+    for market in (
+        "TWSE",
+        "TPEX",
+    ):
+
+        before_count = stats_before[market][0]
+        after_count, min_date, max_date = (
+            stats_after[market]
+        )
+
+        print(
+            f"{market:<4} "
+            f"| rows={after_count:,} "
+            f"| added={after_count - before_count:,} "
+            f"| min={min_date or 'EMPTY'} "
+            f"| max={max_date or 'EMPTY'}"
+        )
+
+    print(
+        "Sync State    : PRESERVED"
+    )
+    print(
+        "PROD Access   : DISABLED"
     )
 
 
@@ -2314,10 +2757,26 @@ def main() -> int:
                         "in Taiwan"
                     )
 
-                run_incremental(
-                    conn,
-                    through,
-                )
+                if args.backfill_from:
+
+                    backfill_from = (
+                        parse_iso_date(
+                            args.backfill_from
+                        )
+                    )
+
+                    run_backfill(
+                        conn,
+                        backfill_from,
+                        through,
+                    )
+
+                else:
+
+                    run_incremental(
+                        conn,
+                        through,
+                    )
 
         finally:
 
