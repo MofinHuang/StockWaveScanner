@@ -6,41 +6,44 @@
 
 下次 GPT 接手後：
 
-**不要重新詢問使用者做到哪裡。**
+- 不要重新從頭規劃整個 StockWaveScanner。
+- 不要重新詢問使用者目前做到哪裡。
+- 不要重新進行 Historical Backfill。
+- 不要重新追查舊的 Crawler 問題。
+- 不要重新討論資料是否補齊。
+- 不要重新從 UI 基礎架構開始。
+- 不要操作 Turso PROD。
+- 不要把缺資料當成 0 分。
+- 不要一次處理很多問題。
+- 如果發生錯誤，只處理第一個 ERROR。
 
-**不要重新進行 Git Recovery。**
+目前專案：
 
-**不要重新執行 TDCC Historical Backfill。**
+> StockWaveScanner 核心系統、UI、資料來源、Historical Data、Score Engine、GitHub Actions 已完成。
 
-**不要繼續優先追查 TWSE `428 / 308 / TooManyRedirects` 問題。**
+歷史資料與模型所需主要資料目前也已補齊。
 
-**不要直接繼續原本 2026-05～2026-06 的逐股票 Historical Price Backfill。**
+目前已經不是「把系統做完」階段。
 
-原因：
-
-專案方向已於 2026-09-12 正式重新檢討。
-
-目前優先工作已從：
-
-```text
-先補資料
-→
-再做模型
-```
-
-改成：
+正式進入：
 
 ```text
-先定義投資模型
-→
-定義真正需要的資料
-→
-重新設計資料架構
-→
-再決定 Historical Backfill 方式
+模型校正
+↓
+Stage 數字化
+↓
+進出場規則
+↓
+風險管理
+↓
+Backtest 驗證
+↓
+UI 解釋能力提升
 ```
 
-舊的 per-stock TWSE monthly crawler 可以保留作為 Research / fallback 工具，但目前不再視為未來 Production 每日資料更新主架構。
+目前最新工作重點：
+
+> 將 Stage 從單純文字分類，改成有實際價格、百分比與風險數字支撐的交易狀態模型。
 
 ---
 
@@ -58,137 +61,36 @@ StockWaveScanner 的目的不是：
 單純挑出今天漲最多的股票
 ```
 
-真正的目標是：
+真正目標：
 
-> 每天從 TWSE + TPEx 全市場中，找出值得研究、目前位置合理、風險可控制的股票，並以一般投資人看得懂的方式說明原因。
+> 每天從 TWSE + TPEx 全市場中，找出值得研究、目前位置合理、風險可控制的股票，並以一般投資人能理解的方式說明原因。
 
-系統必須回答四個問題：
+系統必須回答：
 
 ```text
-1. 現在市場環境適不適合積極做多？
+1. 現在市場環境如何？
 
-2. 這是不是一檔值得研究的強勢股票？
+2. 這是不是值得研究的強勢股票？
 
-3. 這檔股票現在是不是合理的進場時機？
+3. 現在是不是合理進場位置？
 
 4. 如果進場：
    買在哪裡？
-   分析錯了哪裡退出？
-   合理的獲利空間在哪裡？
+   風險多少？
+   哪裡代表判斷錯誤？
+   哪裡可以保護獲利？
+   合理上方空間在哪裡？
 ```
 
 核心理念：
 
-> 先找值得買的股票，再判斷現在值不值得買。
+> 先找值得研究的股票，再判斷現在值不值得進場。
 
 ---
 
-# 2. Current Investment Philosophy
+# 2. Current Investment Model
 
-StockWaveScanner 未來融合三種研究思想。
-
-## A. 技術結構與市場環境
-
-參考老王股票等公開投資研究方法的精神：
-
-```text
-趨勢
-均線
-價格結構
-大量位置
-突破
-缺口
-市場環境
-籌碼
-```
-
-核心：
-
-> 技術分析不要堆疊過多指標。
-
-不建立：
-
-```text
-RSI
-MACD
-KD
-CCI
-ADX
-...
-```
-
-幾十個指標一起投票的黑盒模型。
-
----
-
-## B. 產業、基本面與法人研究
-
-參考鐘崑禎等公開投資研究方法的精神：
-
-```text
-產業趨勢
-未來營運
-營收
-EPS
-低基期
-法人籌碼
-安全邊際
-資金使用效率
-```
-
-核心：
-
-> 股票交易的是未來，不只是過去財報。
-
----
-
-## C. StockWaveScanner 自己的量化紀律
-
-加入：
-
-```text
-Relative Strength
-
-Cross-sectional Percentile
-
-ATR
-
-Risk / Reward
-
-Historical Backtest
-
-Walk-forward Test
-
-No Look-ahead
-
-TOP10 Ranking
-```
-
-任何外部分析師的方法：
-
-```text
-只能作為 Research Hypothesis
-```
-
-不能：
-
-```text
-因分析師推薦某股票
-→
-直接加入 TOP10
-```
-
----
-
-# 3. Core Model Architecture
-
-新版不再依賴單一：
-
-```text
-Bullish Score /100
-```
-
-正式概念改成：
+核心流程：
 
 ```text
 Market Regime
@@ -197,700 +99,690 @@ Strength Score
       ↓
 Timing Score
       ↓
+Stage
+      ↓
 Buy Priority
       ↓
 Trade Plan
 ```
 
----
-
-# 4. Market Regime
-
-Market Regime 回答：
-
-> 現在整體市場是否適合積極操作股票？
-
-Market Regime 不直接算入個股 100 分。
-
-未來可觀察：
+但新版要再加入：
 
 ```text
-TAIEX 趨勢
-
-OTC 趨勢
-
-指數 vs MA20 / MA60
-
-上漲 / 下跌家數
-
-全市場站上 MA20 比例
-
-全市場站上 MA60 比例
-
-成交量
-
-外資整體方向
-
-必要時加入：
-NASDAQ
-SOX
-USD
-Rates
+Price Structure
+      ↓
+Buy Zone
+      ↓
+Breakout Price
+      ↓
+Risk Price
+      ↓
+Target Zone
+      ↓
+Stage 數字化
 ```
 
-UI 最終只需要顯示：
-
-```text
-偏多
-
-震盪 / 中性
-
-高風險
-```
-
-Market Regime 用來：
-
-```text
-控制選股門檻
-
-控制操作積極度
-
-控制是否適合追價
-```
-
-而不是：
-
-```text
-大盤不好
-→
-所有股票直接扣 20 分
-```
+未來 Stage 不能只由 Score 直接決定。
 
 ---
 
-# 5. Strength Score /100
+# 3. Strength Score
 
-Strength Score 回答：
+Strength 回答：
 
-> 這是不是一檔值得優先研究的股票？
+> 這是不是值得優先研究的股票？
 
-不是：
-
-> 現在是不是可以直接買？
-
-目前 Research Starting Point：
+目前模型概念：
 
 ```text
-Trend                    /25
-
-Relative Strength        /20
-
-Momentum / Volume        /15
-
-Chip                     /20
-
-Fundamental / Industry   /20
-
---------------------------------
-
-Strength                /100
+Trend
+Relative Strength
+Momentum / Volume
+Chip
+Fundamental / Industry
 ```
 
-目前權重只是 Research Starting Point。
+Strength 不回答：
 
-未來必須以 Backtest 驗證。
+> 現在能不能買。
 
----
-
-# 6. Trend /25
-
-Trend 回答：
-
-> 股票大方向是否健康？
-
-主要觀察：
+即使：
 
 ```text
-Close vs MA20
-
-Close vs MA60
-
-MA20 vs MA60
-
-MA20 slope
-
-近期 Higher High
-
-近期 Higher Low
-
-價格結構
+Strength = 92
 ```
 
-核心：
+也有可能：
 
 ```text
-Close > MA20 > MA60
-```
-
-通常優於：
-
-```text
-Close < MA20 < MA60
-```
-
-但不能只靠單一條件判斷。
-
-重要原則：
-
-> 價格是市場最終結果。
-
-籌碼應該協助確認價格，而不是取代價格。
-
----
-
-# 7. Relative Strength /20
-
-Relative Strength 回答：
-
-> 這檔股票跟全市場其他股票相比，到底強不強？
-
-不是只看：
-
-```text
-股票自己漲多少
-```
-
-而是做：
-
-```text
-Cross-sectional Ranking
-```
-
-初步研究：
-
-```text
-5D Return Percentile
-
-10D Return Percentile
-
-20D Return Percentile
-```
-
-Research Formula：
-
-```text
-RS
-
-=
-
-5D percentile × 20%
-
-+
-
-10D percentile × 30%
-
-+
-
-20D percentile × 50%
-```
-
-例如：
-
-```text
-RS = 90
+Timing = 30
+Stage = EXTENDED
 ```
 
 代表：
 
-> 最近表現約位於全市場前 10%。
-
-20D 權重較高，避免單日急漲股票直接衝上排名。
+> 股票很強，但價格已經偏離合理進場位置。
 
 ---
 
-# 8. Momentum / Volume /15
-
-Momentum 回答：
-
-> 股票現在是不是正在開始發動？
-
-觀察：
-
-```text
-接近近期高點
-
-突破近期高點
-
-Volume Ratio
-
-突破是否帶量
-
-收盤是否接近高點
-
-突破後是否站穩
-
-大量成交位置
-
-缺口
-
-突破平台
-```
-
-重要：
-
-```text
-爆量
-```
-
-本身不能直接加高分。
-
-例如：
-
-```text
-爆量突破 + 收高
-```
-
-與：
-
-```text
-爆量 + 長上影 + 收回區間
-```
-
-意義完全不同。
-
-因此：
-
-> Volume 必須和價格位置一起判斷。
-
----
-
-# 9. Chip /20
-
-Chip 目標：
-
-> 確認重要資金是否支持目前價格方向。
-
-未來完整 Chip Layer：
-
-```text
-Foreign
-
-Investment Trust
-
-Dealer
-
-TDCC Large Holder
-
-TDCC Retail Holder
-
-Continuity
-
-Acceleration
-```
-
----
-
-# 10. Foreign
-
-Foreign 不只看：
-
-```text
-今天買超幾張
-```
-
-需要考慮：
-
-```text
-Foreign Net / Volume
-
-5D accumulation
-
-20D accumulation
-
-Buy days
-
-Sell → Buy transition
-
-Acceleration
-
-Price confirmation
-```
-
-Research example：
-
-```text
-ForeignIntensity5D
-
-=
-
-Sum(ForeignNet5D)
-
-/ Sum(Volume5D)
-```
-
-保留既有 effective foreign semantic：
-
-```text
-STORED
-
-ZERO_INFERRED
-
-INSUFFICIENT_DATA
-```
-
-ZERO_INFERRED：
-
-```text
-foreign_net = 0
-```
-
-不得製造：
-
-```text
-fake foreign_buy = 0
-
-fake foreign_sell = 0
-```
-
----
-
-# 11. TDCC
-
-TDCC 是：
-
-> 中期持股結構確認訊號。
-
-主要觀察：
-
-```text
-Large Holder %
-
-Retail Holder %
-```
-
-偏多結構：
-
-```text
-Large holders ↑
-
-Retail holders ↓
-```
-
-TDCC 更新頻率較低。
-
-所以未來：
-
-```text
-TDCC 不應占過高權重
-```
-
-也不應當成即時發動訊號。
-
----
-
-# 12. Fundamental / Industry /20
-
-這是新版非常重要的資料層，目前尚未正式完成。
-
-未來希望加入：
-
-```text
-Monthly Revenue YoY
-
-3M Revenue YoY
-
-EPS Growth
-
-Gross Margin Trend
-
-Operating Margin Trend
-
-Growth Acceleration
-
-Industry Cycle
-
-Future Expectation
-
-Estimate Revision
-```
-
-不能簡化成：
-
-```text
-PE < 15
-→
-高分
-```
-
-因為：
-
-```text
-Technology
-
-Financial
-
-Cyclical
-
-Growth
-```
-
-不同產業不能套相同估值標準。
-
-尚未建立正式 Fundamental / Industry Data Source 前：
-
-```text
-不得虛構 Fundamental Score
-```
-
-也不能：
-
-```text
-Fundamental = 0
-```
-
-而錯誤降低總分。
-
-必須有 Model Version。
-
----
-
-# 13. Timing Score /100
+# 4. Timing Score
 
 Timing 回答：
 
-> 這檔好股票現在是不是好的進場位置？
+> 這檔股票現在的位置是否適合進場？
 
-目前 Research Starting Point：
+Timing 可包含：
 
 ```text
-Price Position              /25
+Price Position
+Support
+Volume
+Gap
+Setup Quality
+Risk
+Reward
+```
 
-Support / Volume / Gap      /20
+但：
 
-Setup Quality               /20
+> Timing Score 不能成為唯一進場條件。
 
-Risk                        /20
+未來真正進場判斷必須加入：
 
-Reward / Upside             /15
-
---------------------------------
-
-Timing                     /100
+```text
+Buy Zone
+Breakout Price
+Risk %
+Price Distance
+Stage
 ```
 
 ---
 
-# 14. Strength != Timing
+# 5. Stage — New Direction
 
-這是 StockWaveScanner 最重要的設計之一。
+目前 Stage 名稱易懂：
+
+```text
+BASE
+SETUP
+READY
+BREAKOUT
+MOMENTUM
+EXTENDED
+WEAK
+WAITING_DATA
+```
+
+中文：
+
+```text
+打底
+蓄勢
+進場訊號
+突破
+動能延續
+漲幅延伸
+偏弱
+資料不足
+```
+
+但目前最大的問題：
+
+> 有文字，沒有數字邊界。
 
 例如：
 
 ```text
-Stock A
-
-Strength = 92
-
-Timing = 32
-
-Stage = EXTENDED
+漲幅延伸
 ```
 
-意思：
-
-> 股票很強，但現在已經太遠，不應追價。
-
-另一檔：
+使用者知道意思，但不知道：
 
 ```text
-Stock B
-
-Strength = 79
-
-Timing = 84
-
-Stage = READY
+究竟高出多少算延伸？
+距離合理進場區多少？
+追進去風險多少？
+跌到哪裡需要退出？
 ```
 
-可能反而：
-
-> 更適合列入今日 TOP10。
-
-因此：
-
-```text
-Strongest Stock
-```
-
-不等於：
-
-```text
-Best Current Buy Opportunity
-```
-
-使用者主要需要第二種。
+因此新版 Stage 必須數字化。
 
 ---
 
-# 15. Buy Priority
+# 6. Stage V2.1 — Numeric Stage Model
 
-Research Formula 起始版本：
+目前先採 Research Threshold。
 
-```text
-Buy Priority
+所有門檻未來必須透過 Historical Backtest 驗證。
 
-=
+## BASE — 打底
 
-Strength × 65%
+概念：
 
-+
+> 結構仍在形成，尚未到合理進場位置。
 
-Timing × 35%
-```
-
-這只是研究起點。
-
-最終權重需要 Backtest。
-
-Buy Priority 不是單純：
+初始規則：
 
 ```text
-Score 最大前 10 名
+Price 尚未進 Buy Zone
+
+且
+
+距 Buy Zone 上緣 > 約 3%
+
+且
+
+尚未突破 Breakout Price
 ```
 
-必須搭配 Hard Filter。
+UI：
+
+```text
+打底
+距買進區 -5.2%
+尚未進入布局區
+```
 
 ---
 
-# 16. Hard Filters
+## SETUP — 蓄勢
 
-目前 Research Starting Point：
+概念：
+
+> 價格逐漸靠近合理布局區。
+
+初始規則：
 
 ```text
-data_status = READY
+距 Buy Zone 約 0% ~ 3%
 
-Strength >= 65
+且
 
-Timing >= 60
+價格結構改善
 
-Risk <= 10%
+且
 
-Stage != WEAK
+尚未明顯 EXTENDED
+```
+
+UI：
+
+```text
+蓄勢
+距買進區 1.8%
+接近合理布局區
+```
+
+---
+
+## READY — 進場訊號
+
+概念：
+
+> 價格正式進入模型認定的合理買進區。
+
+初始規則：
+
+```text
+Price >= Buy Zone Low
+
+AND
+
+Price <= Buy Zone High
+
+AND
+
+Risk % <= 8%
+
+AND
+
+Strength 達最低門檻
+
+AND
 
 Stage != EXTENDED
 ```
 
-以上數字未來必須經過 Historical Backtest 驗證。
+UI：
+
+```text
+進場訊號
+
+最新價
+66.5
+
+買進參考
+65.0 ~ 67.0
+
+目前風險
+5.6%
+```
+
+重要：
+
+> READY 不代表保證上漲。
+
+代表：
+
+> 目前價格位於模型認定的合理風險報酬區。
 
 ---
 
-# 17. Stock Stage
+# 7. BREAKOUT — 突破
 
-Internal：
+概念：
+
+> 價格剛突破重要關鍵價。
+
+初始 Research Threshold：
 
 ```text
-BASE
+Close > Breakout Price
 
-SETUP
+且
 
-READY
+突破幅度約 0% ~ 3%
 
-BREAKOUT
+且
 
-MOMENTUM
-
-EXTENDED
-
-WEAK
+Volume Ratio >= 1.3
 ```
 
-手機中文：
+其中：
 
 ```text
-打底
+Breakout %
+=
+(Current Price - Breakout Price)
+/
+Breakout Price
+× 100
+```
 
-蓄勢
+UI：
 
-待發動
-
+```text
 突破
 
-動能延續
+突破價
+67.5
 
-漲幅延伸
+最新價
+68.5
 
-偏弱
+突破幅度
++1.48%
+
+量能
+1.42x
 ```
 
-最重要：
+文字：
 
-> 強 ≠ 現在適合追價。
+> 剛突破關鍵價格，目前偏離幅度仍小。
 
-EXTENDED 可以是很強的股票。
+---
 
-但：
+# 8. MOMENTUM — 動能延續
+
+概念：
+
+> 已突破，趨勢仍強，但已不是最早的進場位置。
+
+初始 Research Threshold：
 
 ```text
-未持有
-→
-通常不要追價
+高於 Breakout Price 約 3% ~ 8%
+
+且
+
+趨勢仍維持
+
+且
+
+未過度偏離 MA20 / ATR
+```
+
+UI：
+
+```text
+動能延續
+
+突破幅度
++5.7%
+
+距 MA20
++4.2%
+```
+
+未持有：
+
+> 已離開最佳早期進場區，需注意追價風險。
+
+已持有：
+
+> 趨勢仍強，可續抱並提高風險保護。
+
+---
+
+# 9. EXTENDED — 漲幅延伸
+
+概念：
+
+> 股票仍可能很強，但價格已經離合理進場位置太遠。
+
+Research Trigger：
+
+符合其中一項即可列入 EXTENDED 候選：
+
+```text
+Price > Breakout Price + 8%
+
+OR
+
+Price > MA20 + 10%
+
+OR
+
+Distance from MA20 > 2 ATR
+```
+
+未來可透過 Backtest 調整。
+
+UI：
+
+```text
+漲幅延伸
+
+距突破價
++11.4%
+
+距 MA20
++10.8%
+
+目前不適合追價
+```
+
+重要：
+
+> EXTENDED 不等於股票不好。
+
+代表：
+
+> 現在的新進場 Risk / Reward 已經變差。
+
+---
+
+# 10. WEAK — 偏弱
+
+概念：
+
+> 原本價格結構開始失效。
+
+初始條件可包含：
+
+```text
+Close < Risk Price
+```
+
+或：
+
+```text
+Close < MA20
+且
+Trend Structure 明顯轉弱
+```
+
+若正式跌破 Risk Price：
+
+```text
+EXIT_SIGNAL = TRUE
+```
+
+UI：
+
+```text
+偏弱
+
+風險價
+62.8
+
+最新價
+62.2
+
+已跌破模型風險價
 ```
 
 ---
 
-# 18. Buy Zone
+# 11. WAITING_DATA
+
+必要資料不足：
+
+```text
+Strength = NULL
+Timing = NULL
+Buy Priority = NULL
+Stage = WAITING_DATA
+```
+
+不可：
+
+```text
+缺資料
+→ 0 分
+```
+
+也不可：
+
+```text
+WAITING_DATA
+→ TOP10
+```
+
+---
+
+# 12. Five Core Numbers
+
+新版每一檔股票至少必須有以下五個價格：
+
+```text
+Latest Price
+
+Buy Zone
+
+Breakout Price
+
+Risk Price
+
+Target Zone
+```
+
+Example：
+
+```text
+最新價
+68.50
+
+買進參考區
+65.00 ~ 67.00
+
+突破價
+67.50
+
+風險價
+62.80
+
+目標區
+74.00 ~ 78.00
+```
+
+---
+
+# 13. Buy Zone
+
+Buy Zone 不是單一價格。
 
 使用：
 
 ```text
 buy_zone_low
-~
+
 buy_zone_high
 ```
 
-不要只給：
-
-```text
-買進價 = XX
-```
-
-Buy Zone 可考慮：
+可能來源：
 
 ```text
 MA10
 
 MA20
 
-ATR
-
 Swing Low
-
-Support
 
 Breakout Level
 
 High Volume Zone
 
-Gap
+Gap Support
 
-Recent Structure
+ATR
+
+Recent Price Structure
 ```
 
 語意：
 
-> 模型買進參考區。
+> 模型合理布局區。
 
 不是：
 
-> 保證上漲價格。
+> 保證上漲區。
 
 ---
 
-# 19. Risk Price
+# 14. Buy Zone Distance
+
+需要新增：
+
+```text
+distance_to_buy_zone_pct
+```
+
+若價格高於 Buy Zone High：
+
+```text
+(Current Price - Buy Zone High)
+/
+Buy Zone High
+× 100
+```
+
+例如：
+
+```text
+Latest = 68.5
+Buy Zone High = 67
+
+Distance
+=
++2.24%
+```
+
+UI：
+
+```text
+距買進區
++2.24%
+```
+
+如果價格位於 Buy Zone：
+
+```text
+0%
+或
+IN_ZONE
+```
+
+---
+
+# 15. Breakout Price
+
+新增正式欄位：
+
+```text
+breakout_price
+```
+
+來源可考慮：
+
+```text
+Recent High
+
+Platform High
+
+Swing High
+
+Resistance
+
+High Volume Resistance
+```
+
+Breakout Price 必須代表：
+
+> 價格突破後，原本盤整或壓力結構正式改變的位置。
+
+---
+
+# 16. Breakout Distance
+
+新增：
+
+```text
+breakout_distance_pct
+```
+
+公式：
+
+```text
+(Current Price - Breakout Price)
+/
+Breakout Price
+× 100
+```
+
+例如：
+
+```text
+Breakout = 67.5
+Current = 68.5
+
+Breakout Distance
+=
++1.48%
+```
+
+Stage 可依此判斷：
+
+```text
+0 ~ 3%
+→ BREAKOUT
+
+3 ~ 8%
+→ MOMENTUM
+
+> 8%
+→ EXTENDED Candidate
+```
+
+---
+
+# 17. Risk Price
 
 Risk Price 回答：
 
-> 如果原交易假設錯了，哪裡代表劇本失效？
+> 如果原本交易假設錯了，哪個價位代表劇本失效？
 
 可依：
 
@@ -899,910 +791,230 @@ Swing Low
 
 Support
 
-Volume Zone
-
 Breakout Level
+
+High Volume Support
+
+Gap Support
+
+MA20
 
 ATR Buffer
 ```
 
-例如：
+Risk Price 不是固定：
 
 ```text
-Entry = 60
-
-Risk Price = 56
+-5%
 ```
 
-則：
+而是：
 
-```text
-Risk = 4
-
-Risk% = 6.67%
-```
-
-Risk Price 的重要性：
-
-> 不低於 Target。
+> 結構失效位置。
 
 ---
 
-# 20. Target Zone
+# 18. Risk %
 
-目前：
+新增：
 
 ```text
-1.5R
-~
-2.5R
-```
-
-但不能只做數學計算。
-
-必須額外檢查：
-
-```text
-Previous High
-
-Heavy Volume Resistance
-
-Overhead Supply
-
-Structure Resistance
-```
-
-如果上方重大壓力不到 1R：
-
-```text
-Trade Quality 應降低
-```
-
-Target 是：
-
-> Trade Planning Reference
-
-不是：
-
-> 股價預測。
-
----
-
-# 21. Data Architecture — New Direction
-
-目前已正式決定：
-
-> Git 不應該當 Historical Data Warehouse。
-
-Git 應保存：
-
-```text
-Source Code
-
-Configuration
-
-Model Version
-
-Frontend
-
-Published Result JSON
-```
-
-不要保存：
-
-```text
-大量 Historical Price
-
-Raw HTML
-
-大量 Raw API Response
-
-完整 Backtest Dataset
-
-巨大 SQLite DB
-```
-
----
-
-# 22. Production Data Pipeline
-
-未來 Production Daily Pipeline 應以：
-
-```text
-Official Market Source
-        ↓
-Market-level Daily Dataset
-        ↓
-Incremental Update
-        ↓
-Historical Core
-        ↓
-Feature Engine
-        ↓
-Ranking Engine
-        ↓
-JSON Publisher
-        ↓
-GitHub Pages
-```
-
-Production 不應以：
-
-```text
-1979 stocks
-×
-每支股票打一個 API
-```
-
-為主要方式。
-
-應優先使用：
-
-```text
-TWSE 全市場 Daily API
-
-TPEx 全市場 Daily API
-```
-
-以及各資料源的批次資料。
-
----
-
-# 23. Incremental Update
-
-每日只更新新增資料。
-
-例如：
-
-```text
-Last Price Date
-=
-2026-09-11
-```
-
-今天：
-
-```text
-2026-09-14
-```
-
-只抓：
-
-```text
-2026-09-14
-```
-
-而不是重新抓歷史。
-
-資料更新頻率：
-
-```text
-Price
-→ Trading Day
-
-Institutional
-→ Trading Day
-
-TDCC
-→ New TDCC Week Only
-
-Revenue
-→ New Month Only
-
-Financial
-→ New Quarter Only
-```
-
----
-
-# 24. Historical Store
-
-不能完全不保存 Historical Core。
-
-因為模型需要：
-
-```text
-MA20
-
-MA60
-
-ATR
-
-Relative Strength
-
-Momentum
-
-Volume Baseline
-
-Swing Structure
-
-TDCC Change
-
-Foreign Trend
-
-Backtest
-```
-
-所以架構：
-
-```text
-Raw
-→
-短期保存 / 用完刪除
-
-Historical Core
-→
-長期保存、不進 Git
-
-Derived Scores
-→
-可重新計算
-
-Publish JSON
-→
-Git
-```
-
----
-
-# 25. Raw Response Policy
-
-Raw-first 研究模式可以保留。
-
-但 Production 不永久保存全部 Raw。
-
-建議：
-
-```text
-Raw retention:
-
-7 ~ 30 days
-```
-
-之後自動 purge。
-
-真正長期保存：
-
-```text
-Normalized Historical Core
-```
-
----
-
-# 26. Historical Data Requirement
-
-不要再以：
-
-```text
-Price >= 30 days
-```
-
-作為完整模型條件。
-
-因為模型包含：
-
-```text
-MA60
-
-20D RS
-
-ATR
-
-Volume baseline
-
-Swing structure
-```
-
-正式 Feature Warm-up 建議：
-
-```text
-至少 120 trading days
-```
-
-Historical Backtest：
-
-```text
-最低 2 years
-
-理想 3 ~ 5 years
-```
-
-最終仍須依資料來源與成本決定。
-
----
-
-# 27. Research DB vs Production Git
-
-概念必須分離：
-
-```text
-Research Data Warehouse
-
-!=
-
-Production Git Repository
-```
-
-Research 未來可以使用：
-
-```text
-SQLite
-
-Parquet
-
-DuckDB
-```
-
-初期可繼續 SQLite。
-
-資料規模增加後：
-
-```text
-Parquet + DuckDB
-```
-
-值得考慮。
-
----
-
-# 28. Git Published Data
-
-GitHub Pages 未來主要使用：
-
-```text
-docs/data/latest/status.json
-
-docs/data/latest/market.json
-
-docs/data/latest/top10.json
-
-docs/data/latest/stocks.json
-
-docs/data/latest/analyst_digest.json
-```
-
-只保存：
-
-```text
-latest
-```
-
-不要每天新增：
-
-```text
-2026-09-01
-
-2026-09-02
-
-2026-09-03
-```
-
-避免 Git History 無限膨脹。
-
----
-
-# 29. Analyst Digest
-
-使用者固定關注：
-
-```text
-老王股票
-https://www.youtube.com/@oldwangstock
-
-鐘崑禎 / WE178
-https://www.youtube.com/@WE178
-```
-
-系統未來每天需要：
-
-```text
-檢查是否有新影片
-```
-
-如果有：
-
-```text
-整理今日市場觀點
-
-關注產業
-
-提及股票
-
-主要理由
-
-操作觀點
-
-風險提醒
-```
-
-一天多支影片：
-
-```text
-合併成今日摘要
-```
-
-避免使用者仍需看多篇。
-
----
-
-# 30. Analyst Digest Is NOT Score
-
-分析師提到某股票：
-
-```text
-Analyst Attention = TRUE
-```
-
-但：
-
-```text
-不直接加 Strength
-
-不直接加 Timing
-
-不直接進 TOP10
-```
-
-即使：
-
-```text
-老王
-+
-鐘崑禎
-```
-
-同時提到：
-
-也不能直接推薦。
-
-未來可以累積資料後研究：
-
-```text
-Analyst Mention
-+
-StockWave READY
-```
-
-是否具有額外統計優勢。
-
-有 Backtest 證據後才能考慮納入模型。
-
----
-
-# 31. Analyst Digest UI
-
-手機頁：
-
-```text
-研究摘要
-```
-
-內容：
-
-```text
-今日市場觀點
-
-老王今日重點
-
-鐘崑禎今日重點
-
-共同關注產業
-
-提及股票
-
-與 StockWave TOP10 交集
-
-模型不同意的股票
-```
-
-模型不同意非常重要。
-
-例如：
-
-```text
-Analyst Bullish
-
-Strength = 92
-
-Timing = 25
-
-Stage = EXTENDED
-```
-
-必須說：
-
-> 分析師觀點偏多，但目前模型判斷漲幅延伸，不建議追價。
-
----
-
-# 32. Mobile Navigation
-
-目前正式規劃：
-
-```text
-首頁
-
-TOP10
-
-研究摘要
-
-自選股票
-```
-
-評分藍圖說明：
-
-```text
-放在系統說明 / 評分說明
-```
-
-不一定占 Bottom Navigation。
-
----
-
-# 33. Home Page
-
-首頁只回答：
-
-```text
-今天資料更新成功嗎？
-
-市場環境如何？
-
-TOP10 是否完成？
-
-我的自選有沒有重要變化？
-```
-
-Example：
-
-```text
-StockWaveScanner
-
-資料日期：
-2026-09-14
-
-市場環境：
-偏多
-
-Ranking：
-1952 / 1979
-
-我的自選：
-
-3 檔有重要變化
-
-2330
-蓄勢 → 待發動
-
-2382
-進入買進參考區
-
-2454
-漲幅延伸－不要追
-```
-
----
-
-# 34. TOP10 UI
-
-TOP10 使用：
-
-> 條列式。
-
-不要使用大型卡片塞滿全部資料。
-
-每列主要顯示：
-
-```text
-Rank
-
-Stock ID
-
-Stock Name
-
-Strength
-
-Timing
-
-Stage
-
-Latest Price
-
-Buy Zone
-
-Action
-```
-
-Example：
-
-```text
-#1 2330 台積電                 >
-
-強度 86
-時機 82
-狀態：待發動
-
-最新 1280
-
-買進參考
-1250 ~ 1280
-
-接近合理布局區
-```
-
-點擊：
-
-```text
->
-```
-
-進入 Individual Stock Detail。
-
----
-
-# 35. Watchlist / 我的自選
-
-「查股票」已重新定義為：
-
-```text
-我的自選
-```
-
-頁面頂端仍提供：
-
-```text
-搜尋股票代號 / 股票名稱
-```
-
-搜尋結果可：
-
-```text
-加入自選
-```
-
-加入後：
-
-```text
-下次進入網站仍顯示
-```
-
-可：
-
-```text
-移除自選
-```
-
-移除代表：
-
-> 不再關注。
-
-但股票仍然可以再次搜尋及重新加入。
-
----
-
-# 36. Watchlist UI
-
-自選股票也採：
-
-> 條列式。
-
-不要大型卡片。
-
-Example：
-
-```text
-2330 台積電                     >
-
-強度 86
-時機 82
-狀態：待發動
-
-最新 1280
-
-買進參考
-1250 ~ 1280
-
-↑ 今日條件改善
-```
-
-持股：
-
-```text
-2382 廣達                       >
-
-強度 84
-時機 79
-狀態：動能延續
-
-最新 286
-
-持有 2000 股
-成本 268.5
-
-損益 +6.52%
-
-續抱，留意風險價 257
-```
-
----
-
-# 37. Watchlist Storage V2
-
-V2 初期使用：
-
-```text
-Browser LocalStorage
-```
-
-避免為少量個人資料先建立：
-
-```text
-Login
-
-Account
-
-Cloud DB
-```
-
-LocalStorage 只保存：
-
-```text
-stock_id
-
-added_at
-
-avg_cost
-
-shares
-
-first_buy_date
-```
-
-不要保存：
-
-```text
-Stock Name
-
-Latest Price
-
-Strength
-
-Timing
-
-Stage
-
-Risk
-```
-
-這些每天從：
-
-```text
-stocks.json
-```
-
-取得。
-
----
-
-# 38. Watchlist Limitation
-
-LocalStorage 有限制：
-
-```text
-手機
-```
-
-與：
-
-```text
-電腦
-```
-
-不一定同步。
-
-V2 接受此限制。
-
-未來如果使用者明確需要：
-
-```text
-跨裝置同步
-```
-
-再做：
-
-```text
-Cloud Watchlist
-
-Login
-```
-
----
-
-# 39. Holdings
-
-自選股票可以維護：
-
-```text
-平均買進價
-
-持有股數
-
-首次買進日期
-```
-
-判斷：
-
-```text
-shares > 0
-```
-
-代表：
-
-```text
-已持有
-```
-
-否則：
-
-```text
-純觀察
-```
-
----
-
-# 40. Holdings Derived Data
-
-系統自動計算：
-
-```text
-Investment Cost
-
-Market Value
-
-Unrealized P/L
-
-Return %
+risk_pct
 ```
 
 公式：
 
 ```text
-Cost
-=
-Average Price × Shares
-
-Market Value
-=
-Latest Price × Shares
-
-P/L
-=
-Market Value - Cost
-
-Return %
-=
-(Latest - Average Cost)
-/ Average Cost
+(Current Price - Risk Price)
+/
+Current Price
 × 100
 ```
 
-V2 暫時不納入：
+Example：
 
 ```text
-Trading Fee
+Current = 68.5
+Risk = 62.8
 
-Transaction Tax
-
-Multiple Transaction Ledger
+Risk %
+=
+8.32%
 ```
 
-未來 V3 可升級 Trade Journal。
+初始 Entry Research Threshold：
+
+```text
+Risk <= 8%
+```
+
+未來用 Backtest 校正。
 
 ---
 
-# 41. Entry Advice vs Position Advice
+# 19. Entry Signal
 
-這是重要規則。
+未來不再使用：
+
+```text
+Timing >= XX
+```
+
+直接等於進場。
+
+Entry 應至少：
+
+```text
+ENTRY_READY =
+
+Price >= Buy Zone Low
+
+AND
+
+Price <= Buy Zone High
+
+AND
+
+Risk % <= Entry Risk Threshold
+
+AND
+
+Strength >= Minimum Strength
+
+AND
+
+Stage != EXTENDED
+
+AND
+
+Readiness = READY
+```
+
+Breakout Entry 則可另外定義：
+
+```text
+BREAKOUT_ENTRY =
+
+Breakout Distance >= 0%
+
+AND
+
+Breakout Distance <= 3%
+
+AND
+
+Volume Ratio >= 1.3
+
+AND
+
+Risk % acceptable
+```
+
+---
+
+# 20. Exit Signal
+
+Exit 必須拆成：
+
+```text
+Defensive Exit
+
+Profit Protection
+```
+
+---
+
+# 21. Defensive Exit
+
+最重要條件：
+
+```text
+Close < Risk Price
+```
+
+代表：
+
+> 原本交易假設失效。
+
+此時：
+
+```text
+exit_signal = DEFENSIVE_EXIT
+```
+
+UI：
+
+```text
+跌破風險價
+
+風險價
+62.8
+
+最新價
+62.2
+```
+
+---
+
+# 22. Profit Protection
+
+如果股票已經上漲：
+
+> 不應該永遠使用最初的 Risk Price。
+
+新增：
+
+```text
+trailing_risk_price
+```
+
+初步可考慮：
+
+```text
+MAX(
+    MA20,
+    Recent Swing Low,
+    Breakout Price
+)
+```
+
+再視需要加入：
+
+```text
+ATR Buffer
+```
+
+Example：
+
+```text
+Entry
+66
+
+Current
+82
+
+Original Risk
+62.8
+
+Trailing Risk
+75.5
+```
+
+此時已持有者應看：
+
+```text
+75.5
+```
+
+而不是：
+
+```text
+62.8
+```
+
+---
+
+# 23. Entry Advice vs Position Advice
 
 同一檔股票：
 
@@ -1816,49 +1028,257 @@ Multiple Transaction Ledger
 已持有
 ```
 
-操作建議不同。
+必須顯示不同建議。
 
-例如：
+Example：
 
 ```text
 Strength = 92
-
-Timing = 30
-
 Stage = EXTENDED
 ```
 
 未持有：
 
-> 漲幅延伸－不要追價。
+> 漲幅延伸，目前高於合理進場區，不宜追價。
 
 已持有：
 
-> 趨勢仍強，可續抱；目前進入延伸階段，提高風險價保護獲利。
+> 趨勢仍強，可續抱；提高風險保護並觀察 Trailing Risk Price。
 
-所以：
+核心：
 
 ```text
 未持有
-→
-Entry Advice
+→ Entry Advice
 
 已持有
-→
-Position Advice
+→ Position Advice
 ```
 
 ---
 
-# 42. Individual Stock Detail
+# 24. Target Zone
 
-TOP10 與自選股票共用同一個：
+Target 不只是：
 
 ```text
-Individual Stock Detail Page
+固定漲幅 %
 ```
 
-明細頁顯示：
+初步仍可使用：
+
+```text
+1.5R
+~
+2.5R
+```
+
+但必須同時檢查：
+
+```text
+Previous High
+
+Heavy Volume Resistance
+
+Overhead Supply
+
+Structure Resistance
+```
+
+Target：
+
+> Trade Planning Reference。
+
+不是：
+
+> 股價預測。
+
+---
+
+# 25. Reward / Risk
+
+未來新增：
+
+```text
+reward_risk_ratio
+```
+
+概念：
+
+```text
+Potential Reward
+/
+Potential Risk
+```
+
+例如：
+
+```text
+Entry
+66
+
+Risk
+62
+
+Target
+74
+
+Risk
+4
+
+Reward
+8
+
+R/R
+2.0
+```
+
+可以顯示：
+
+```text
+預估風險報酬
+2.0R
+```
+
+---
+
+# 26. Stage Priority Logic
+
+未來 Stage 不應只做：
+
+```text
+if timing > 80
+→ READY
+```
+
+而應依價格結構優先。
+
+概念順序：
+
+```text
+if Data Not Ready
+    WAITING_DATA
+
+else if Price < Risk Price
+    WEAK
+
+else if Extended Condition
+    EXTENDED
+
+else if Breakout Distance > 3% and <= 8%
+    MOMENTUM
+
+else if Breakout Distance >= 0% and <= 3%
+    BREAKOUT
+
+else if Price inside Buy Zone
+    READY
+
+else if Distance to Buy Zone <= 3%
+    SETUP
+
+else
+    BASE
+```
+
+注意：
+
+> 這只是目前的 Research Logic。
+
+正式寫入 Production 前必須先確認現有程式欄位與計算方式。
+
+---
+
+# 27. Proposed Stage Numeric Thresholds
+
+目前 Research Starting Point：
+
+| Stage | 初始數字 |
+|---|---|
+| BASE | 距 Buy Zone > 3% |
+| SETUP | 距 Buy Zone 約 0~3% |
+| READY | Price inside Buy Zone + Risk ≤ 8% |
+| BREAKOUT | Breakout +0~3% |
+| MOMENTUM | Breakout +3~8% |
+| EXTENDED | Breakout >8% 或 MA20 >10% 或 >2 ATR |
+| WEAK | Close < Risk Price |
+| WAITING_DATA | Required Data Missing |
+
+所有門檻：
+
+> 都不是最終 Production 真理。
+
+需 Backtest。
+
+---
+
+# 28. UI New Direction
+
+未來 Stage 顯示不可只顯示：
+
+```text
+漲幅延伸
+```
+
+應顯示：
+
+```text
+漲幅延伸
+
+距突破價
++11.4%
+
+距 MA20
++10.8%
+
+買進區
+65 ~ 67
+
+最新
+74.6
+```
+
+READY：
+
+```text
+進場訊號
+
+最新
+66.5
+
+買進區
+65 ~ 67
+
+風險價
+62.8
+
+目前風險
+5.6%
+```
+
+BREAKOUT：
+
+```text
+突破
+
+突破價
+67.5
+
+最新
+68.5
+
+突破幅度
++1.48%
+
+量能
+1.42x
+```
+
+---
+
+# 29. Stock Detail — Required Fields
+
+個股明細未來至少顯示：
 
 ```text
 Strength
@@ -1871,488 +1291,195 @@ Stage
 
 Latest Price
 
-Buy Zone
+Buy Zone Low
+
+Buy Zone High
+
+Distance to Buy Zone %
+
+Breakout Price
+
+Breakout Distance %
 
 Risk Price
 
 Risk %
 
+Trailing Risk Price
+
 Target Zone
 
-Action
+Reward / Risk
+
+Entry Advice
+
+Position Advice
 ```
 
 ---
 
-# 43. Score Explanation
+# 30. TOP10 UI
 
-詳細頁才顯示：
+TOP10 列表仍保持簡潔。
 
-```text
-Trend Score
+不要全部顯示技術資料。
 
-RS Score
-
-Momentum Score
-
-Chip Score
-
-Fundamental Score
-```
-
-並一定附：
-
-> 白話說明。
-
-例如不要只顯示：
+建議：
 
 ```text
-Trend 22 / 25
+#1 2330 台積電
+
+強度
+86
+
+時機
+82
+
+狀態
+突破 +1.4%
+
+最新
+1285
+
+買進區
+1245 ~ 1270
+
+風險
+5.3%
 ```
 
-還要：
-
-> 股價維持 MA20、MA60 之上，中短期趨勢仍向上。
+點擊才看完整 Trade Plan。
 
 ---
 
-# 44. Advanced Technical Data
+# 31. Watchlist / Holdings
 
-技術數據預設收合：
-
-```text
-[展開技術數據]
-```
-
-包含：
+Watchlist 必須區分：
 
 ```text
-MA20
-
-MA60
-
-ATR
-
-5D Return
-
-10D Return
-
-20D Return
-
-RS Percentile
-
-Foreign 5D
-
-Foreign 20D
-
-Large Holder %
-
-Retail Holder %
-```
-
-列表頁不顯示這些。
-
----
-
-# 45. UI Core Rule
-
-正式 UI 設計原則：
-
-> 列表只回答「今天要不要注意它」。
-
-> 明細頁才回答「為什麼」。
-
-因此：
-
-```text
-TOP10
+純觀察
 ```
 
 與：
 
 ```text
-我的自選
+已持有
 ```
 
-都必須保持精簡條列。
+持有者額外顯示：
+
+```text
+Average Cost
+
+Shares
+
+Current Return
+
+Original Risk
+
+Trailing Risk
+
+Position Advice
+```
 
 ---
 
-# 46. Current Completed Work
+# 32. Score vs Price Structure
 
-已完成：
-
-```text
-Git Recovery
-
-backup-before-sync-20260911
-
-Bullish V2 Research Implementation
-
-Trade Plan V2 Research Implementation
-
-Foreign ZERO_INFERRED Research
-
-TDCC Historical Backfill
-
-Raw-first validation
-
-Historical Trade Plan Backtest Skeleton
-```
-
-TDCC Historical：
+正式原則：
 
 ```text
-2026-06-12
-~
-2026-08-28
-
-12 dates
-
-23744 rows
-```
-
-不要重新抓。
-
----
-
-# 47. Previous Historical Price Problem
-
-過去發現：
-
-```text
-2026-07-17
-
-Price >= 30 days
+Score
 =
-5 stocks
+判斷股票品質
 
-TDCC >= 4 dates
+Price Structure
 =
-1979 stocks
-```
+判斷進場位置
 
-原因：
-
-```text
-Historical Price Coverage insufficient
-```
-
-不是 Bullish V2 Bug。
-
-後續建立：
-
-```text
-scripts/backfill_market_prices.py
-```
-
-曾嘗試：
-
-```text
-TWSE 2026-05
-TWSE 2026-06
-```
-
-遇到：
-
-```text
-428
-
-308
-
-TooManyRedirects
-```
-
-2026-09-12 已決定：
-
-> 暫停優先追查此 crawler。
-
-因為新的 Data Architecture 應先定義完成。
-
----
-
-# 48. Git Safety
-
-已存在安全 branch：
-
-```text
-backup-before-sync-20260911
-```
-
-禁止：
-
-```text
-git reset --hard
-```
-
-除非確認未 commit 檔案已有安全備份。
-
-絕對禁止：
-
-```text
-git push --force
-```
-
-除非使用者明確理解並要求。
-
----
-
-# 49. Development Communication Rule
-
-使用者不是 Python 專業開發者。
-
-每次開發溝通：
-
-```text
-一次只做一個明確步驟
-```
-
-回答優先格式：
-
-```text
-現在做什麼
-
-↓
-
-PowerShell / 修改內容
-
-↓
-
-正常會看到什麼
-```
-
-如果使用者貼 ERROR：
-
-```text
-停止
-
-↓
-
-分析 ERROR
-
-↓
-
-再給下一步
-```
-
-不要一次提供十幾個操作指令。
-
----
-
-# 50. NEW PROJECT WORKSTREAM
-
-目前從這裡開始。
-
-## Phase 1 — Model Specification
-
-正式定義：
-
-```text
-Strength Score Formula
-
-Timing Score Formula
-
-Buy Priority
+Risk
+=
+判斷錯了在哪裡退出
 
 Stage
-
-Buy Zone
-
-Risk Model
-
-Target Model
-
-Market Regime
+=
+把 Price Structure 翻譯成簡單狀態
 ```
 
-目前已有 Concept Blueprint。
+所以：
 
-下一步要把 Concept 變成：
-
-```text
-可實作公式
-```
+> Stage 不能只是 Score 的另一種名稱。
 
 ---
 
-## Phase 2 — Data Requirement Matrix
+# 33. Strength != Entry
 
-每一個 Score 都建立：
-
-```text
-需要什麼欄位
-
-來源
-
-更新頻率
-
-需要多少歷史
-
-資料缺失如何處理
-```
-
-Example：
+例如：
 
 ```text
-MA60
+Strength = 94
 
-Source:
-Daily Price
+Current Price = 120
 
-Frequency:
-Trading Day
+Buy Zone = 100 ~ 105
 
-Warm-up:
->= 60 trading days
+Breakout = 106
 ```
 
-最後決定：
+即使非常強：
 
 ```text
-Historical Price
-到底需要抓幾年
+Breakout Distance
+=
++13.2%
 ```
 
-不要先抓再決定。
+Stage：
+
+```text
+EXTENDED
+```
+
+未持有：
+
+> 不追。
+
+這是新版 Stage 最重要的價值。
 
 ---
 
-## Phase 3 — Production Data Architecture
+# 34. Future Backtest
 
-重新設計：
+資料目前已補齊。
+
+所以未來可以利用現有 Historical Data 驗證：
 
 ```text
-TWSE Daily Market Data
+Buy Zone Accuracy
 
-TPEx Daily Market Data
+Breakout Threshold
 
-Institutional
+3% Breakout Range
 
-TDCC
+8% Extended Threshold
 
-Revenue
+Risk <= 8%
 
-Financial
+MA20 Distance
 
-Industry
+ATR Distance
+
+Trailing Risk
 ```
 
-核心：
+測試結果：
 
 ```text
-Market-level API
+5D Return
 
-Incremental
+10D Return
 
-Minimal Requests
-```
-
-停止把：
-
-```text
-per-stock API
-```
-
-作為 Production 主架構。
-
----
-
-## Phase 4 — Historical Store
-
-決定：
-
-```text
-SQLite
-```
-
-或：
-
-```text
-Parquet + DuckDB
-```
-
-初期偏向：
-
-```text
-SQLite
-```
-
-先完成模型。
-
-DB：
-
-```text
-不進 Git
-```
-
----
-
-## Phase 5 — Fundamental / Industry Layer
-
-研究正式資料來源：
-
-```text
-Revenue
-
-Financial Statements
-
-EPS
-
-Margin
-
-Industry Classification
-
-Growth
-```
-
-資料來源確定前：
-
-```text
-Fundamental Score 不啟用
-```
-
----
-
-## Phase 6 — Analyst Digest
-
-建立：
-
-```text
-OldWang Channel Monitor
-
-WE178 Channel Monitor
-
-Daily Digest
-
-Industry Extraction
-
-Stock Mention Extraction
-
-Model Cross-check
-```
-
-每日摘要：
-
-```text
-1 ~ 3 minutes
-```
-
-即可閱讀完。
-
----
-
-## Phase 7 — Historical Backtest
-
-Historical Coverage 完成後：
-
-測試：
-
-```text
-5D
-
-10D
-
-20D
+20D Return
 
 Win Rate
 
@@ -2369,252 +1496,468 @@ Risk First
 2.5R First
 ```
 
-並依：
+並拆分：
 
 ```text
+Stage
+
 Strength Band
 
 Timing Band
-
-Stage
 
 Market Regime
 
 TWSE / TPEx
 ```
 
-拆分。
+---
+
+# 35. Model Version
+
+Stage 新規則必須建立版本。
+
+例如：
+
+```text
+stage_model_version
+=
+v2.1
+```
+
+避免未來：
+
+```text
+Stage 定義改了
+```
+
+但 Historical Result 無法追溯。
 
 ---
 
-## Phase 8 — Model Calibration
+# 36. Current Development Strategy
 
-用 Backtest 決定：
+目前專案已完成。
+
+後續開發原則：
 
 ```text
-25 / 20 / 15 / 20 / 20
+不要大改整套架構
+
+↓
+
+先調整 Stage / Trade Plan
+
+↓
+
+建立數字化邏輯
+
+↓
+
+再 Backtest
+
+↓
+
+最後才校正門檻
 ```
 
-是否合理。
+不先重寫 Strength Score。
 
-不要因為目前討論結果就視為 Production 真理。
+不重新補 Historical Data。
 
-Backtest 可以：
+不重做 Crawler。
+
+---
+
+# 37. Git / Environment Safety
+
+Repo：
 
 ```text
-增加權重
+https://github.com/MofinHuang/StockWaveScanner
+```
 
-降低權重
+Local：
 
-移除指標
+```text
+D:\002.Programs\002.Others\Python\StockWaveScanner
+```
 
-調整 Hard Filter
+Branch：
+
+```text
+main
+```
+
+Python：
+
+```text
+.\.venv\Scripts\python.exe
+```
+
+不要使用：
+
+```text
+python
+
+py -3.13
 ```
 
 ---
 
-## Phase 9 — Ranking Engine
+# 38. Turso
 
-建立：
+資料庫：
 
 ```text
-Best Current Buy Opportunities
+Turso DEV
+=
+stockwave-dev
 ```
 
-而不是：
-
 ```text
-Strongest Stocks
+Turso PROD
+=
+stockwave-prod
 ```
 
-輸出：
+所有開發、測試：
+
+> 只能操作 DEV。
+
+禁止：
+
+> 操作 PROD。
+
+除非使用者日後明確要求正式發布。
+
+---
+
+# 39. Git Safety
+
+禁止：
 
 ```text
-TOP10
+git push --force
 ```
 
-並排除：
+除非使用者明確要求且理解風險。
+
+禁止：
 
 ```text
-WEAK
+git reset --hard
+```
 
+除非非常明確安全。
+
+不可 Commit：
+
+```text
+.env
+
+GO.md
+
+AGENTS.md
+```
+
+除非使用者日後明確改變規則。
+
+---
+
+# 40. Development Communication Rule
+
+使用繁體中文。
+
+使用者不是 Python 專職工程師。
+
+每次：
+
+```text
+一次只做一個清楚步驟
+```
+
+回答格式優先：
+
+```text
+現在做什麼
+
+↓
+
+要改什麼
+
+↓
+
+完整程式 / 完整函式
+
+↓
+
+PowerShell 指令
+
+↓
+
+正常結果
+```
+
+如果 ERROR：
+
+```text
+停止
+
+↓
+
+只分析第一個 ERROR
+
+↓
+
+修正
+
+↓
+
+再繼續
+```
+
+不要一次猜十個問題。
+
+---
+
+# 41. Commit Rule
+
+不要為每個小修改一直 Commit。
+
+應：
+
+```text
+完成一個完整功能區塊
+
+↓
+
+確認執行正常
+
+↓
+
+Commit
+
+↓
+
+Push
+```
+
+---
+
+# 42. Current Next Action
+
+下次繼續時：
+
+> 不要重新討論 Stage 為什麼需要數字化。
+
+已經確定。
+
+第一個正式工作：
+
+```text
+檢查目前 Stage / Trade Plan 實際程式
+```
+
+找出目前：
+
+```text
+Stage 在哪裡計算
+
+Buy Zone 在哪裡計算
+
+Risk Price 在哪裡計算
+
+Target 在哪裡計算
+
+Breakout 是否已有欄位
+
+ATR 是否已有欄位
+```
+
+然後：
+
+> 在不破壞現有 Score Engine 的前提下，設計 Stage V2.1。
+
+優先新增：
+
+```text
+breakout_price
+
+distance_to_buy_zone_pct
+
+breakout_distance_pct
+
+risk_pct
+
+trailing_risk_price
+
+reward_risk_ratio
+```
+
+再調整：
+
+```text
+BASE
+SETUP
+READY
+BREAKOUT
+MOMENTUM
 EXTENDED
-
-Risk Too High
-
-Data Not Ready
+WEAK
 ```
 
 ---
 
-## Phase 10 — Watchlist / Holdings
+# 43. Important — Do Not Immediately Hardcode Everything
 
-建立：
+下一次不要直接看到：
 
 ```text
-Search
+3%
 
-Add Watchlist
+8%
 
-Remove Watchlist
+10%
 
-Average Cost
-
-Shares
-
-Buy Date
-
-P/L
-
-Entry Advice
-
-Position Advice
+2 ATR
 ```
 
-V2：
+就立刻全部寫死進 Production。
+
+正確流程：
 
 ```text
-LocalStorage
-```
+先確認現有資料欄位
 
----
+↓
 
-## Phase 11 — Mobile V2
+先建立 Derived Metrics
 
-最後才建立 UI。
+↓
 
-Navigation：
+確認目前股票可以正確算出
 
-```text
-首頁
+↓
 
-TOP10
+Stage 使用 Research Threshold
 
-研究摘要
+↓
 
-自選股票
-```
+Historical Backtest
 
-TOP10：
+↓
 
-```text
-條列
-```
-
-Watchlist：
-
-```text
-條列
-```
-
-Detail：
-
-```text
-完整分析
+再決定正式 Threshold
 ```
 
 ---
 
-# 51. CURRENT NEXT ACTION
+# 44. Final Stage Principle
 
-下次 GPT 開始工作時：
+新版 Stage 的核心：
 
-不要從 Crawler Error 開始。
+> Stage 不只告訴使用者股票現在「叫什麼狀態」。
 
-不要從 UI 開始。
-
-不要重新跑任何 Historical Backfill。
-
-第一個正式工作應該是：
-
-> 建立 StockWaveScanner V2.1 Data Requirement Matrix。
-
-將：
+而要告訴使用者：
 
 ```text
-Market Regime
+現在多少錢
 
-Trend
+合理買在哪裡
 
-Relative Strength
+距離合理位置多少 %
 
-Momentum / Volume
+突破了多少 %
 
-Foreign
+目前承擔多少風險 %
 
-TDCC
+哪裡代表判斷錯誤
 
-Fundamental / Industry
-
-Timing
-
-Buy Zone
-
-Risk
-
-Target
+如果已持有，哪裡應開始保護獲利
 ```
 
-逐項列出：
+最後呈現：
 
 ```text
-計算目的
-
-正式公式
-
-需要欄位
-
-資料來源
-
-更新頻率
-
-Historical Warm-up
-
-Missing Data Policy
-```
-
-完成這張 Matrix 後：
-
-才能正式決定：
-
-```text
-Production Crawler Architecture
-
-Historical Data Range
-
-Database Schema
+Stage
++
+Price
++
+Distance %
++
+Risk %
++
+Invalidation Price
++
+Trade Plan
 ```
 
 ---
 
-# 52. FINAL PROJECT PRINCIPLE
+# 45. Final Project Principle
 
 StockWaveScanner 最終共同遵循：
 
-> 用基本面與產業判斷值不值得研究，用趨勢與相對強勢確認市場是否認同，用籌碼確認資金方向，最後用價格結構與風險報酬決定現在能不能買。
+> 用基本面與產業判斷值不值得研究，用趨勢與相對強勢確認市場是否認同，用籌碼確認資金方向，最後用價格結構與風險報酬決定現在能不能進場。
 
-Production 不追求：
+新版再補一句：
 
-```text
-更多資料
-```
+> 分數用來找股票，價格結構用來決定行動。
 
-而追求：
+系統最終追求：
 
 ```text
-正確的資料
+正確資料
 
 ↓
 
-可解釋的公式
+可解釋模型
 
 ↓
 
-經歷史驗證的模型
+有數字依據的 Stage
 
 ↓
 
-簡單清楚的使用者結果
+明確進場區
+
+↓
+
+明確風險價
+
+↓
+
+明確獲利保護
+
+↓
+
+Historical Backtest
+
+↓
+
+簡單易懂的 UI
 ```
 
-資料、模型、UI 都必須服務這個目標。
+Stage 最終不應只是：
+
+```text
+漲幅延伸
+```
+
+而應是：
+
+```text
+漲幅延伸
+
+距突破價 +11.4%
+
+距合理買進區 +9.8%
+
+目前風險 12.1%
+
+未持有：不追價
+
+已持有：續抱，保護價 72.5
+```
+
+這就是下一階段 StockWaveScanner 最重要的方向。
