@@ -6,9 +6,9 @@ on:
 
   schedule:
 
-    # Taiwan every day 18:00
-    # UTC every day 10:00
-    - cron: "0 10 * * *"
+    # Taiwan every day 16:30
+    # UTC every day 8:30
+    - cron: "30 8 * * *"
 
   push:
 
