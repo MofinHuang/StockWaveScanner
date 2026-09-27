@@ -1,4 +1,4 @@
-name: StockWaveScanner V2 UI DEV
+name: StockWaveScanner V3 UI DEV
 
 on:
 
@@ -7,7 +7,7 @@ on:
   schedule:
 
     # Taiwan every day 16:30
-    # UTC every day 8:30
+    # UTC every day 08:30
     - cron: "30 8 * * *"
 
   push:
@@ -19,6 +19,7 @@ on:
       - "docs/**"
       - "scripts/export_v2_ui_snapshot.py"
       - "scripts/build_v2_scores.py"
+      - "scripts/build_v3_ui_snapshot.py"
       - ".github/workflows/publish-v2-ui-dev.yml"
 
 
@@ -28,7 +29,7 @@ permissions:
 
 concurrency:
 
-  group: stockwavescanner-v2-ui-dev
+  group: stockwavescanner-v3-ui-dev
 
   cancel-in-progress: true
 
@@ -37,7 +38,7 @@ jobs:
 
   build-ui:
 
-    name: Build V2 UI
+    name: Build V3 UI
 
     runs-on: windows-latest
 
@@ -138,10 +139,23 @@ jobs:
           esac
 
 
-          echo "DEV database safety check PASS"
+          echo "[PASS] DEV database safety check"
 
 
-      - name: Export V2 UI snapshot
+      - name: Validate V3 UI scripts
+        shell: bash
+
+        run: |
+
+          python -m py_compile \
+            scripts/export_v2_ui_snapshot.py \
+            scripts/build_v2_scores.py \
+            scripts/build_v3_ui_snapshot.py
+
+          echo "[PASS] V3 UI scripts syntax validation"
+
+
+      - name: Export V2 base snapshot
         shell: bash
 
         run: |
@@ -157,6 +171,31 @@ jobs:
 
           python \
             scripts/build_v2_scores.py
+
+
+      - name: Build V3 UI snapshot
+        shell: bash
+
+        run: |
+
+          python \
+            scripts/build_v3_ui_snapshot.py
+
+
+      - name: Validate generated V3 UI
+        shell: bash
+
+        run: |
+
+          if [ ! -f "docs/data/latest/v3_ui.json" ]; then
+
+            echo "ERROR: docs/data/latest/v3_ui.json was not generated"
+
+            exit 1
+
+          fi
+
+          echo "[PASS] v3_ui.json generated"
 
 
       - name: Show generated files
@@ -176,7 +215,7 @@ jobs:
         with:
 
           name:
-            stockwavescanner-v2-ui
+            stockwavescanner-v3-ui
 
           path:
             docs
@@ -224,7 +263,7 @@ jobs:
         with:
 
           name:
-            stockwavescanner-v2-ui
+            stockwavescanner-v3-ui
 
           path:
             docs
