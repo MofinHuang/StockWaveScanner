@@ -17,33 +17,16 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 
-DATA_DIR = (
-    ROOT
-    / "docs"
-    / "data"
-    / "latest"
-)
+DATA_DIR = ROOT / "docs" / "data" / "latest"
 
-STOCKS_FILE = (
-    DATA_DIR
-    / "stocks.json"
-)
+STOCKS_FILE = DATA_DIR / "stocks.json"
+TOP10_FILE = DATA_DIR / "top10.json"
+ACTION_PRIORITY_FILE = DATA_DIR / "action_priority.json"
+STATUS_FILE = DATA_DIR / "status.json"
 
-TOP10_FILE = (
-    DATA_DIR
-    / "top10.json"
-)
+SCORE_MODEL_VERSION = "V3-STEP4E-RESEARCH-1"
 
-STATUS_FILE = (
-    DATA_DIR
-    / "status.json"
-)
-
-SCORE_MODEL_VERSION = "V2.1-DRAFT-2-SCORE-1"
-
-TAIPEI = ZoneInfo(
-    "Asia/Taipei"
-)
+TAIPEI = ZoneInfo("Asia/Taipei")
 
 
 # ============================================================
@@ -74,6 +57,7 @@ def configure_console() -> None:
                 )
 
             except Exception:
+
                 pass
 
 
@@ -81,9 +65,7 @@ def now_iso() -> str:
 
     return (
         datetime
-        .now(
-            TAIPEI
-        )
+        .now(TAIPEI)
         .isoformat(
             timespec="seconds"
         )
@@ -105,9 +87,7 @@ def load_json(
         encoding="utf-8",
     ) as file:
 
-        return json.load(
-            file
-        )
+        return json.load(file)
 
 
 def write_json(
@@ -132,9 +112,7 @@ def write_json(
             indent=2,
         )
 
-        file.write(
-            "\n"
-        )
+        file.write("\n")
 
     print(
         f"[WRITE] {path}"
@@ -151,9 +129,7 @@ def number(
 
     try:
 
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
@@ -162,9 +138,7 @@ def number(
 
         return None
 
-    if not math.isfinite(
-        result
-    ):
+    if not math.isfinite(result):
 
         return None
 
@@ -210,27 +184,58 @@ def average(
 
     valid = [
         value
-
-        for value
-        in values
-
+        for value in values
         if value is not None
     ]
 
-    if len(
-        valid
-    ) < minimum_count:
+    if len(valid) < minimum_count:
 
         return None
 
     return (
-        sum(
-            valid
-        )
+        sum(valid)
         /
-        len(
-            valid
+        len(valid)
+    )
+
+
+def weighted_average(
+    items: list[
+        tuple[
+            float | None,
+            float,
+        ]
+    ],
+) -> float | None:
+
+    total_value = 0.0
+    total_weight = 0.0
+
+    for (
+        value,
+        weight,
+    ) in items:
+
+        if value is None:
+
+            continue
+
+        total_value += (
+            value
+            *
+            weight
         )
+
+        total_weight += weight
+
+    if total_weight <= 0:
+
+        return None
+
+    return (
+        total_value
+        /
+        total_weight
     )
 
 
@@ -252,24 +257,18 @@ def percentile_rank(
 
         return None
 
-    if len(
-        sorted_values
-    ) == 1:
+    if len(sorted_values) == 1:
 
         return 50.0
 
-    left = (
-        bisect.bisect_left(
-            sorted_values,
-            value,
-        )
+    left = bisect.bisect_left(
+        sorted_values,
+        value,
     )
 
-    right = (
-        bisect.bisect_right(
-            sorted_values,
-            value,
-        )
+    right = bisect.bisect_right(
+        sorted_values,
+        value,
     )
 
     midpoint = (
@@ -284,9 +283,7 @@ def percentile_rank(
         midpoint
         /
         (
-            len(
-                sorted_values
-            )
+            len(sorted_values)
             -
             1
         )
@@ -301,48 +298,37 @@ def get_metric(
 ) -> float | None:
 
     technical = (
-        stock.get(
-            "technical"
-        )
+        stock.get("technical")
         or {}
     )
 
     institutional = (
-        stock.get(
-            "institutional"
-        )
+        stock.get("institutional")
         or {}
     )
 
     tdcc = (
-        stock.get(
-            "tdcc"
-        )
+        stock.get("tdcc")
         or {}
     )
 
     fundamental = (
-        stock.get(
-            "fundamental"
-        )
+        stock.get("fundamental")
         or {}
     )
 
     revenue = (
-        fundamental.get(
-            "revenue"
-        )
+        fundamental.get("revenue")
         or {}
     )
 
     financial = (
-        fundamental.get(
-            "financial"
-        )
+        fundamental.get("financial")
         or {}
     )
 
     mapping = {
+
         "return_20d":
             technical.get(
                 "return_20d_pct"
@@ -389,9 +375,7 @@ def get_metric(
             ),
 
         "eps":
-            financial.get(
-                "eps"
-            ),
+            financial.get("eps"),
 
         "operating_margin":
             financial.get(
@@ -405,9 +389,7 @@ def get_metric(
     }
 
     return number(
-        mapping.get(
-            metric
-        )
+        mapping.get(metric)
     )
 
 
@@ -446,24 +428,18 @@ def build_percentile_maps(
 
         for stock in stocks:
 
-            value = (
-                get_metric(
-                    stock,
-                    metric,
-                )
+            value = get_metric(
+                stock,
+                metric,
             )
 
             if value is not None:
 
-                values.append(
-                    value
-                )
+                values.append(value)
 
         values.sort()
 
-        result[
-            metric
-        ] = values
+        result[metric] = values
 
     return result
 
@@ -490,7 +466,14 @@ def metric_percentile(
 
 
 # ============================================================
-# COMPONENT SCORES
+# LEGACY TECHNICAL COMPONENTS
+#
+# 目前只保留給：
+# - Legacy Strength
+# - Timing
+# - Buy Priority
+#
+# 不再作為正式 Technical / Overall 主模型。
 # ============================================================
 
 
@@ -499,35 +482,25 @@ def trend_score(
 ) -> float | None:
 
     latest = (
-        stock.get(
-            "latest"
-        )
+        stock.get("latest")
         or {}
     )
 
     technical = (
-        stock.get(
-            "technical"
-        )
+        stock.get("technical")
         or {}
     )
 
     close = number(
-        latest.get(
-            "close"
-        )
+        latest.get("close")
     )
 
     ma20 = number(
-        technical.get(
-            "ma20"
-        )
+        technical.get("ma20")
     )
 
     ma60 = number(
-        technical.get(
-            "ma60"
-        )
+        technical.get("ma60")
     )
 
     return20 = number(
@@ -584,9 +557,7 @@ def trend_score(
         0.20
     )
 
-    return clamp(
-        score
-    )
+    return clamp(score)
 
 
 def relative_strength_score(
@@ -597,12 +568,10 @@ def relative_strength_score(
     ],
 ) -> float | None:
 
-    return (
-        metric_percentile(
-            stock,
-            "return_20d",
-            maps,
-        )
+    return metric_percentile(
+        stock,
+        "return_20d",
+        maps,
     )
 
 
@@ -615,9 +584,7 @@ def momentum_volume_score(
 ) -> float | None:
 
     technical = (
-        stock.get(
-            "technical"
-        )
+        stock.get("technical")
         or {}
     )
 
@@ -666,6 +633,11 @@ def momentum_volume_score(
     )
 
 
+# ============================================================
+# CHIP
+# ============================================================
+
+
 def chip_score(
     stock: dict[str, Any],
     maps: dict[
@@ -675,6 +647,7 @@ def chip_score(
 ) -> float | None:
 
     parts = [
+
         metric_percentile(
             stock,
             "foreign_20d",
@@ -706,6 +679,11 @@ def chip_score(
     )
 
 
+# ============================================================
+# FUNDAMENTAL
+# ============================================================
+
+
 def fundamental_score(
     stock: dict[str, Any],
     maps: dict[
@@ -715,6 +693,7 @@ def fundamental_score(
 ) -> float | None:
 
     parts = [
+
         metric_percentile(
             stock,
             "revenue_yoy",
@@ -753,6 +732,479 @@ def fundamental_score(
 
 
 # ============================================================
+# TECHNICAL V2 SCORE CURVES
+# ============================================================
+
+
+def score_ma20_ma60_distance(
+    value: float | None,
+) -> float | None:
+
+    if value is None:
+
+        return None
+
+    if value < -10:
+
+        return 55.0
+
+    if value < -5:
+
+        return 70.0
+
+    if value < 0:
+
+        return 80.0
+
+    if value < 5:
+
+        return 85.0
+
+    if value < 10:
+
+        return 60.0
+
+    return 25.0
+
+
+def score_close_ma20_distance(
+    value: float | None,
+) -> float | None:
+
+    if value is None:
+
+        return None
+
+    if value < -10:
+
+        return 60.0
+
+    if value < -5:
+
+        return 75.0
+
+    if value < 0:
+
+        return 90.0
+
+    if value < 5:
+
+        return 85.0
+
+    if value < 10:
+
+        return 60.0
+
+    if value < 20:
+
+        return 35.0
+
+    return 10.0
+
+
+def score_atr_position(
+    value: float | None,
+) -> float | None:
+
+    if value is None:
+
+        return None
+
+    if value < -3:
+
+        return 55.0
+
+    if value < -2:
+
+        return 70.0
+
+    if value < -1:
+
+        return 85.0
+
+    if value <= 1:
+
+        return 90.0
+
+    if value <= 2:
+
+        return 75.0
+
+    if value <= 3:
+
+        return 55.0
+
+    if value <= 4:
+
+        return 35.0
+
+    return 15.0
+
+
+def score_return_20d(
+    value: float | None,
+) -> float | None:
+
+    if value is None:
+
+        return None
+
+    if value < -10:
+
+        return 55.0
+
+    if value < -5:
+
+        return 75.0
+
+    if value < 0:
+
+        return 85.0
+
+    if value < 5:
+
+        return 80.0
+
+    if value < 10:
+
+        return 60.0
+
+    if value < 20:
+
+        return 40.0
+
+    return 15.0
+
+
+def score_return_5d(
+    value: float | None,
+) -> float | None:
+
+    if value is None:
+
+        return None
+
+    if value < -5:
+
+        return 60.0
+
+    if value < 0:
+
+        return 85.0
+
+    if value < 3:
+
+        return 80.0
+
+    if value < 6:
+
+        return 60.0
+
+    if value < 10:
+
+        return 40.0
+
+    return 20.0
+
+
+def score_volume_ratio(
+    value: float | None,
+) -> float | None:
+
+    if value is None:
+
+        return None
+
+    if value < 0.5:
+
+        return 55.0
+
+    if value < 0.8:
+
+        return 80.0
+
+    if value < 1.2:
+
+        return 85.0
+
+    if value < 1.5:
+
+        return 70.0
+
+    if value < 2.0:
+
+        return 55.0
+
+    return 35.0
+
+
+# ============================================================
+# TECHNICAL V2
+# ============================================================
+
+
+def technical_v2_components(
+    stock: dict[str, Any],
+) -> dict[
+    str,
+    float | None,
+]:
+
+    latest = (
+        stock.get("latest")
+        or {}
+    )
+
+    technical = (
+        stock.get("technical")
+        or {}
+    )
+
+    close = number(
+        latest.get("close")
+    )
+
+    ma20 = number(
+        technical.get("ma20")
+    )
+
+    ma60 = number(
+        technical.get("ma60")
+    )
+
+    atr14 = number(
+        technical.get("atr14")
+    )
+
+    return_5d = number(
+        technical.get(
+            "return_5d_pct"
+        )
+    )
+
+    return_20d = number(
+        technical.get(
+            "return_20d_pct"
+        )
+    )
+
+    volume_ratio = number(
+        technical.get(
+            "volume_ratio_20"
+        )
+    )
+
+    # --------------------------------------------------------
+    # MA20 / MA60
+    # --------------------------------------------------------
+
+    ma20_ma60_pct = None
+
+    if (
+        ma20 is not None
+        and
+        ma60 is not None
+        and
+        ma60 != 0
+    ):
+
+        ma20_ma60_pct = (
+            ma20
+            /
+            ma60
+            -
+            1
+        ) * 100.0
+
+    # --------------------------------------------------------
+    # CLOSE / MA20
+    # --------------------------------------------------------
+
+    close_ma20_pct = None
+
+    if (
+        close is not None
+        and
+        ma20 is not None
+        and
+        ma20 != 0
+    ):
+
+        close_ma20_pct = (
+            close
+            /
+            ma20
+            -
+            1
+        ) * 100.0
+
+    # --------------------------------------------------------
+    # ATR position
+    # --------------------------------------------------------
+
+    close_ma20_atr = None
+
+    if (
+        close is not None
+        and
+        ma20 is not None
+        and
+        atr14 is not None
+        and
+        atr14 > 0
+    ):
+
+        close_ma20_atr = (
+            close
+            -
+            ma20
+        ) / atr14
+
+    # --------------------------------------------------------
+    # Trend Structure
+    # --------------------------------------------------------
+
+    trend_structure = (
+        weighted_average(
+            [
+                (
+                    score_ma20_ma60_distance(
+                        ma20_ma60_pct
+                    ),
+                    0.60,
+                ),
+                (
+                    score_close_ma20_distance(
+                        close_ma20_pct
+                    ),
+                    0.40,
+                ),
+            ]
+        )
+    )
+
+    # --------------------------------------------------------
+    # Price Position
+    # --------------------------------------------------------
+
+    price_position = (
+        weighted_average(
+            [
+                (
+                    score_close_ma20_distance(
+                        close_ma20_pct
+                    ),
+                    0.70,
+                ),
+                (
+                    score_atr_position(
+                        close_ma20_atr
+                    ),
+                    0.30,
+                ),
+            ]
+        )
+    )
+
+    # --------------------------------------------------------
+    # Momentum Quality
+    # --------------------------------------------------------
+
+    momentum_quality = (
+        weighted_average(
+            [
+                (
+                    score_return_20d(
+                        return_20d
+                    ),
+                    0.45,
+                ),
+                (
+                    score_return_5d(
+                        return_5d
+                    ),
+                    0.30,
+                ),
+                (
+                    score_volume_ratio(
+                        volume_ratio
+                    ),
+                    0.25,
+                ),
+            ]
+        )
+    )
+
+    # --------------------------------------------------------
+    # Technical
+    # --------------------------------------------------------
+
+    technical_score = (
+        weighted_average(
+            [
+                (
+                    trend_structure,
+                    0.35,
+                ),
+                (
+                    price_position,
+                    0.40,
+                ),
+                (
+                    momentum_quality,
+                    0.25,
+                ),
+            ]
+        )
+    )
+
+    return {
+
+        "ma20_ma60_pct":
+            rounded(
+                ma20_ma60_pct,
+                2,
+            ),
+
+        "close_ma20_pct":
+            rounded(
+                close_ma20_pct,
+                2,
+            ),
+
+        "close_ma20_atr":
+            rounded(
+                close_ma20_atr,
+                2,
+            ),
+
+        "trend_structure":
+            rounded(
+                trend_structure,
+                1,
+            ),
+
+        "price_position":
+            rounded(
+                price_position,
+                1,
+            ),
+
+        "momentum_quality":
+            rounded(
+                momentum_quality,
+                1,
+            ),
+
+        "technical":
+            rounded(
+                technical_score,
+                1,
+            ),
+    }
+
+
+# ============================================================
 # TIMING
 # ============================================================
 
@@ -766,29 +1218,21 @@ def timing_score(
 ) -> float | None:
 
     latest = (
-        stock.get(
-            "latest"
-        )
+        stock.get("latest")
         or {}
     )
 
     technical = (
-        stock.get(
-            "technical"
-        )
+        stock.get("technical")
         or {}
     )
 
     close = number(
-        latest.get(
-            "close"
-        )
+        latest.get("close")
     )
 
     ma20 = number(
-        technical.get(
-            "ma20"
-        )
+        technical.get("ma20")
     )
 
     return5 = number(
@@ -835,7 +1279,6 @@ def timing_score(
         1
     ) * 100.0
 
-    # 最佳位置約落在 MA20 附近至 MA20 +3%
     if (
         -1.5
         <= distance
@@ -880,7 +1323,6 @@ def timing_score(
         5.0
     )
 
-    # 過熱不再持續加分
     if return5 > 12.0:
 
         momentum = max(
@@ -924,195 +1366,42 @@ def timing_score(
 
 
 # ============================================================
-# STAGE / TRADE PLAN
+# TRADE PLAN
 # ============================================================
-
-
-def build_stage(
-    stock: dict[str, Any],
-    strength: float,
-    timing: float,
-) -> dict[str, str]:
-
-    latest = (
-        stock.get(
-            "latest"
-        )
-        or {}
-    )
-
-    technical = (
-        stock.get(
-            "technical"
-        )
-        or {}
-    )
-
-    close = number(
-        latest.get(
-            "close"
-        )
-    )
-
-    ma20 = number(
-        technical.get(
-            "ma20"
-        )
-    )
-
-    atr = number(
-        technical.get(
-            "atr14"
-        )
-    )
-
-    return5 = number(
-        technical.get(
-            "return_5d_pct"
-        )
-    )
-
-    extended = False
-
-    if (
-        close is not None
-        and
-        ma20 is not None
-        and
-        atr is not None
-        and
-        close
-        >
-        ma20
-        +
-        atr
-        *
-        2.0
-    ):
-
-        extended = True
-
-    if (
-        return5 is not None
-        and
-        return5 > 12.0
-    ):
-
-        extended = True
-
-    if extended:
-
-        return {
-            "code":
-                "EXTENDED",
-
-            "label":
-                "漲幅延伸",
-        }
-
-    if strength < 55:
-
-        return {
-            "code":
-                "AVOID",
-
-            "label":
-                "暫不關注",
-        }
-
-    if (
-        strength >= 75
-        and
-        timing >= 70
-    ):
-
-        return {
-            "code":
-                "TRIGGER",
-
-            "label":
-                "進場訊號",
-        }
-
-    if strength >= 70:
-
-        return {
-            "code":
-                "SETUP",
-
-            "label":
-                "型態準備",
-        }
-
-    return {
-        "code":
-            "WATCH",
-
-        "label":
-            "持續觀察",
-    }
-
-
-def build_action(
-    stage_code: str,
-) -> str:
-
-    mapping = {
-        "TRIGGER":
-            "可列入今日優先觀察",
-
-        "SETUP":
-            "等待 Timing 改善",
-
-        "WATCH":
-            "持續追蹤，暫不追價",
-
-        "EXTENDED":
-            "股價偏離買點，等待拉回",
-
-        "AVOID":
-            "目前條件不足",
-    }
-
-    return mapping.get(
-        stage_code,
-        "等待資料補齊",
-    )
 
 
 def build_trade_plan(
     stock: dict[str, Any],
-) -> dict[str, float | None]:
+) -> dict[
+    str,
+    float | None,
+]:
 
     latest = (
-        stock.get(
-            "latest"
-        )
+        stock.get("latest")
         or {}
     )
 
     technical = (
-        stock.get(
-            "technical"
-        )
+        stock.get("technical")
         or {}
     )
 
     close = number(
-        latest.get(
-            "close"
-        )
+        latest.get("close")
     )
 
     ma20 = number(
-        technical.get(
-            "ma20"
-        )
+        technical.get("ma20")
     )
 
     atr = number(
+        technical.get("atr14")
+    )
+
+    breakout_price = number(
         technical.get(
-            "atr14"
+            "breakout_price_candidate"
         )
     )
 
@@ -1127,10 +1416,23 @@ def build_trade_plan(
     ):
 
         return {
+
             "buy_zone_low":
                 None,
 
             "buy_zone_high":
+                None,
+
+            "distance_to_buy_zone_pct":
+                None,
+
+            "breakout_price":
+                rounded(
+                    breakout_price,
+                    2,
+                ),
+
+            "breakout_distance_pct":
                 None,
 
             "risk_price":
@@ -1139,10 +1441,16 @@ def build_trade_plan(
             "risk_pct":
                 None,
 
+            "current_risk_pct":
+                None,
+
             "target_low":
                 None,
 
             "target_high":
+                None,
+
+            "reward_risk_ratio":
                 None,
         }
 
@@ -1200,7 +1508,118 @@ def build_trade_plan(
         100.0
     )
 
+    # --------------------------------------------------------
+    # Buy Zone Distance
+    # --------------------------------------------------------
+
+    if close < buy_low:
+
+        distance_to_buy_zone_pct = (
+            (
+                close
+                -
+                buy_low
+            )
+            /
+            buy_low
+            *
+            100.0
+        )
+
+    elif close > buy_high:
+
+        distance_to_buy_zone_pct = (
+            (
+                close
+                -
+                buy_high
+            )
+            /
+            buy_high
+            *
+            100.0
+        )
+
+    else:
+
+        distance_to_buy_zone_pct = 0.0
+
+    # --------------------------------------------------------
+    # Breakout Distance
+    # --------------------------------------------------------
+
+    breakout_distance_pct = None
+
+    if (
+        breakout_price is not None
+        and
+        breakout_price > 0
+    ):
+
+        breakout_distance_pct = (
+            (
+                close
+                -
+                breakout_price
+            )
+            /
+            breakout_price
+            *
+            100.0
+        )
+
+    # --------------------------------------------------------
+    # Current Risk
+    # --------------------------------------------------------
+
+    current_risk_pct = None
+
+    if close > 0:
+
+        current_risk_pct = (
+            (
+                close
+                -
+                risk_price
+            )
+            /
+            close
+            *
+            100.0
+        )
+
+    # --------------------------------------------------------
+    # Reward / Risk
+    # --------------------------------------------------------
+
+    reward_risk_ratio = None
+
+    current_risk_amount = (
+        close
+        -
+        risk_price
+    )
+
+    potential_reward = (
+        target_low
+        -
+        close
+    )
+
+    if (
+        current_risk_amount > 0
+        and
+        potential_reward > 0
+    ):
+
+        reward_risk_ratio = (
+            potential_reward
+            /
+            current_risk_amount
+        )
+
     return {
+
         "buy_zone_low":
             rounded(
                 buy_low,
@@ -1210,6 +1629,24 @@ def build_trade_plan(
         "buy_zone_high":
             rounded(
                 buy_high,
+                2,
+            ),
+
+        "distance_to_buy_zone_pct":
+            rounded(
+                distance_to_buy_zone_pct,
+                2,
+            ),
+
+        "breakout_price":
+            rounded(
+                breakout_price,
+                2,
+            ),
+
+        "breakout_distance_pct":
+            rounded(
+                breakout_distance_pct,
                 2,
             ),
 
@@ -1225,6 +1662,12 @@ def build_trade_plan(
                 2,
             ),
 
+        "current_risk_pct":
+            rounded(
+                current_risk_pct,
+                2,
+            ),
+
         "target_low":
             rounded(
                 target_low,
@@ -1236,7 +1679,226 @@ def build_trade_plan(
                 target_high,
                 2,
             ),
+
+        "reward_risk_ratio":
+            rounded(
+                reward_risk_ratio,
+                2,
+            ),
     }
+
+
+# ============================================================
+# STAGE V2
+# ============================================================
+
+
+def build_stage(
+    stock: dict[str, Any],
+    overall: float,
+    trade_plan: dict[
+        str,
+        float | None,
+    ],
+) -> dict[str, str]:
+
+    buy_distance = number(
+        trade_plan.get(
+            "distance_to_buy_zone_pct"
+        )
+    )
+
+    breakout_distance = number(
+        trade_plan.get(
+            "breakout_distance_pct"
+        )
+    )
+
+    current_risk = number(
+        trade_plan.get(
+            "current_risk_pct"
+        )
+    )
+
+    # --------------------------------------------------------
+    # AVOID
+    # --------------------------------------------------------
+
+    if overall < 40.0:
+
+        return {
+            "code": "AVOID",
+            "label": "暫不關注",
+        }
+
+    # --------------------------------------------------------
+    # Missing price structure
+    # --------------------------------------------------------
+
+    if (
+        buy_distance is None
+        or
+        breakout_distance is None
+        or
+        current_risk is None
+    ):
+
+        return {
+            "code": "WATCH",
+            "label": "持續觀察",
+        }
+
+    # --------------------------------------------------------
+    # EXTENDED
+    # --------------------------------------------------------
+
+    if (
+        breakout_distance > 8.0
+        or
+        buy_distance > 12.0
+        or
+        current_risk > 25.0
+    ):
+
+        return {
+            "code": "EXTENDED",
+            "label": "漲幅延伸",
+        }
+
+    # --------------------------------------------------------
+    # Actionable quality gate
+    # --------------------------------------------------------
+
+    if overall < 70.0:
+
+        return {
+            "code": "WATCH",
+            "label": "持續觀察",
+        }
+
+    # --------------------------------------------------------
+    # BREAKOUT
+    # --------------------------------------------------------
+
+    if (
+        0.0
+        <= breakout_distance
+        <= 5.0
+        and
+        current_risk <= 22.0
+    ):
+
+        return {
+            "code": "BREAKOUT",
+            "label": "突破確認",
+        }
+
+    # --------------------------------------------------------
+    # READY
+    # --------------------------------------------------------
+
+    ready_price = False
+
+    if (
+        -3.0
+        <= buy_distance
+        <= 3.0
+    ):
+
+        ready_price = True
+
+    if (
+        -3.0
+        <= breakout_distance
+        < 0.0
+    ):
+
+        ready_price = True
+
+    if (
+        ready_price
+        and
+        current_risk <= 18.0
+    ):
+
+        return {
+            "code": "READY",
+            "label": "接近買點",
+        }
+
+    # --------------------------------------------------------
+    # SETUP
+    # --------------------------------------------------------
+
+    setup_price = False
+
+    if (
+        -5.0
+        <= buy_distance
+        <= 8.0
+    ):
+
+        setup_price = True
+
+    if (
+        -10.0
+        <= breakout_distance
+        < 0.0
+    ):
+
+        setup_price = True
+
+    if (
+        setup_price
+        and
+        current_risk <= 22.0
+    ):
+
+        return {
+            "code": "SETUP",
+            "label": "型態準備",
+        }
+
+    return {
+        "code": "WATCH",
+        "label": "持續觀察",
+    }
+
+
+# ============================================================
+# ACTION
+# ============================================================
+
+
+def build_action(
+    stage_code: str,
+) -> str:
+
+    mapping = {
+
+        "BREAKOUT":
+            "突破前高，觀察量價與是否站穩",
+
+        "READY":
+            "價格接近買點，可列入今日優先觀察",
+
+        "SETUP":
+            "條件接近，等待價格結構確認",
+
+        "WATCH":
+            "股票品質可追蹤，價格位置尚未成熟",
+
+        "EXTENDED":
+            "股價偏離合理買點，等待拉回",
+
+        "AVOID":
+            "整體條件不足",
+    }
+
+    return mapping.get(
+        stage_code,
+        "等待資料補齊",
+    )
 
 
 # ============================================================
@@ -1253,22 +1915,18 @@ def score_stock(
 ) -> bool:
 
     readiness = (
-        stock.get(
-            "readiness"
-        )
+        stock.get("readiness")
         or {}
     )
 
     if (
-        readiness.get(
-            "overall"
-        )
-        != "READY"
+        readiness.get("overall")
+        !=
+        "READY"
     ):
 
-        stock[
-            "scores"
-        ] = {
+        stock["scores"] = {
+
             "trend":
                 None,
 
@@ -1278,10 +1936,25 @@ def score_stock(
             "momentum_volume":
                 None,
 
+            "trend_structure":
+                None,
+
+            "price_position":
+                None,
+
+            "momentum_quality":
+                None,
+
             "chip":
                 None,
 
             "fundamental":
+                None,
+
+            "technical":
+                None,
+
+            "overall":
                 None,
 
             "strength":
@@ -1300,9 +1973,7 @@ def score_stock(
                 SCORE_MODEL_VERSION,
         }
 
-        stock[
-            "stage"
-        ] = {
+        stock["stage"] = {
             "code":
                 "WAITING_DATA",
 
@@ -1310,29 +1981,40 @@ def score_stock(
                 "資料補齊中",
         }
 
-        stock[
-            "action"
-        ] = (
+        stock["action"] = (
             "等待資料補齊"
         )
 
         return False
 
-    trend = (
-        trend_score(
-            stock
-        )
+    # --------------------------------------------------------
+    # Legacy
+    # --------------------------------------------------------
+
+    legacy_trend = (
+        trend_score(stock)
     )
 
-    relative = (
+    legacy_relative = (
         relative_strength_score(
             stock,
             maps,
         )
     )
 
-    momentum = (
+    legacy_momentum = (
         momentum_volume_score(
+            stock,
+            maps,
+        )
+    )
+
+    # --------------------------------------------------------
+    # Fundamental / Chip
+    # --------------------------------------------------------
+
+    fundamental = (
+        fundamental_score(
             stock,
             maps,
         )
@@ -1345,12 +2027,43 @@ def score_stock(
         )
     )
 
-    fundamental = (
-        fundamental_score(
-            stock,
-            maps,
+    # --------------------------------------------------------
+    # Technical V2
+    # --------------------------------------------------------
+
+    technical_v2 = (
+        technical_v2_components(
+            stock
         )
     )
+
+    technical = number(
+        technical_v2.get(
+            "technical"
+        )
+    )
+
+    trend_structure = number(
+        technical_v2.get(
+            "trend_structure"
+        )
+    )
+
+    price_position = number(
+        technical_v2.get(
+            "price_position"
+        )
+    )
+
+    momentum_quality = number(
+        technical_v2.get(
+            "momentum_quality"
+        )
+    )
+
+    # --------------------------------------------------------
+    # Timing
+    # --------------------------------------------------------
 
     timing = (
         timing_score(
@@ -1359,38 +2072,53 @@ def score_stock(
         )
     )
 
-    components = (
-        trend,
-        relative,
-        momentum,
-        chip,
-        fundamental,
-        timing,
-    )
+    # --------------------------------------------------------
+    # Core V3 readiness
+    # --------------------------------------------------------
 
-    if any(
-        value is None
-
-        for value
-        in components
+    if (
+        fundamental is None
+        or
+        chip is None
+        or
+        technical is None
     ):
 
-        stock[
-            "scores"
-        ] = {
+        stock["scores"] = {
+
             "trend":
                 rounded(
-                    trend
+                    legacy_trend
                 ),
 
             "relative_strength":
                 rounded(
-                    relative
+                    legacy_relative
                 ),
 
             "momentum_volume":
                 rounded(
-                    momentum
+                    legacy_momentum
+                ),
+
+            "trend_structure":
+                rounded(
+                    trend_structure
+                ),
+
+            "price_position":
+                rounded(
+                    price_position
+                ),
+
+            "momentum_quality":
+                rounded(
+                    momentum_quality
+                ),
+
+            "fundamental":
+                rounded(
+                    fundamental
                 ),
 
             "chip":
@@ -1398,10 +2126,13 @@ def score_stock(
                     chip
                 ),
 
-            "fundamental":
+            "technical":
                 rounded(
-                    fundamental
+                    technical
                 ),
+
+            "overall":
+                None,
 
             "strength":
                 None,
@@ -1421,9 +2152,7 @@ def score_stock(
                 SCORE_MODEL_VERSION,
         }
 
-        stock[
-            "stage"
-        ] = {
+        stock["stage"] = {
             "code":
                 "WAITING_DATA",
 
@@ -1431,70 +2160,146 @@ def score_stock(
                 "資料補齊中",
         }
 
-        stock[
-            "action"
-        ] = (
+        stock["action"] = (
             "部分評分欄位資料不足"
         )
 
         return False
 
-    strength = (
-        trend
+    # --------------------------------------------------------
+    # OVERALL V2
+    # --------------------------------------------------------
+
+    overall = (
+        fundamental
         *
         0.30
         +
-        relative
-        *
-        0.20
-        +
-        momentum
-        *
-        0.15
-        +
         chip
         *
-        0.20
+        0.30
         +
-        fundamental
+        technical
         *
-        0.15
+        0.40
     )
 
-    buy_priority = (
-        strength
-        *
-        0.65
-        +
-        timing
-        *
-        0.35
+    # --------------------------------------------------------
+    # Legacy Strength
+    # --------------------------------------------------------
+
+    legacy_strength = None
+
+    if (
+        legacy_trend is not None
+        and
+        legacy_relative is not None
+        and
+        legacy_momentum is not None
+    ):
+
+        legacy_strength = (
+            legacy_trend
+            *
+            0.30
+            +
+            legacy_relative
+            *
+            0.20
+            +
+            legacy_momentum
+            *
+            0.15
+            +
+            chip
+            *
+            0.20
+            +
+            fundamental
+            *
+            0.15
+        )
+
+    # --------------------------------------------------------
+    # Legacy Buy Priority
+    # --------------------------------------------------------
+
+    buy_priority = None
+
+    if (
+        legacy_strength is not None
+        and
+        timing is not None
+    ):
+
+        buy_priority = (
+            legacy_strength
+            *
+            0.65
+            +
+            timing
+            *
+            0.35
+        )
+
+    # --------------------------------------------------------
+    # Trade Plan / Stage
+    # --------------------------------------------------------
+
+    trade_plan = (
+        build_trade_plan(stock)
     )
 
     stage = (
         build_stage(
             stock,
-            strength,
-            timing,
+            overall,
+            trade_plan,
         )
     )
 
-    stock[
-        "scores"
-    ] = {
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    stock["scores"] = {
+
+        # Legacy
         "trend":
             rounded(
-                trend
+                legacy_trend
             ),
 
         "relative_strength":
             rounded(
-                relative
+                legacy_relative
             ),
 
         "momentum_volume":
             rounded(
-                momentum
+                legacy_momentum
+            ),
+
+        # Technical V2
+        "trend_structure":
+            rounded(
+                trend_structure
+            ),
+
+        "price_position":
+            rounded(
+                price_position
+            ),
+
+        "momentum_quality":
+            rounded(
+                momentum_quality
+            ),
+
+        # V3
+        "fundamental":
+            rounded(
+                fundamental
             ),
 
         "chip":
@@ -1502,14 +2307,20 @@ def score_stock(
                 chip
             ),
 
-        "fundamental":
+        "technical":
             rounded(
-                fundamental
+                technical
             ),
 
+        "overall":
+            rounded(
+                overall
+            ),
+
+        # Legacy compatibility
         "strength":
             rounded(
-                strength
+                legacy_strength
             ),
 
         "timing":
@@ -1529,25 +2340,48 @@ def score_stock(
             SCORE_MODEL_VERSION,
     }
 
-    stock[
-        "stage"
-    ] = stage
+    stock["technical_v2"] = {
 
-    stock[
-        "trade_plan"
-    ] = (
-        build_trade_plan(
-            stock
-        )
+        "ma20_ma60_pct":
+            technical_v2.get(
+                "ma20_ma60_pct"
+            ),
+
+        "close_ma20_pct":
+            technical_v2.get(
+                "close_ma20_pct"
+            ),
+
+        "close_ma20_atr":
+            technical_v2.get(
+                "close_ma20_atr"
+            ),
+
+        "trend_structure":
+            technical_v2.get(
+                "trend_structure"
+            ),
+
+        "price_position":
+            technical_v2.get(
+                "price_position"
+            ),
+
+        "momentum_quality":
+            technical_v2.get(
+                "momentum_quality"
+            ),
+    }
+
+    stock["stage"] = stage
+
+    stock["trade_plan"] = (
+        trade_plan
     )
 
-    stock[
-        "action"
-    ] = (
+    stock["action"] = (
         build_action(
-            stage[
-                "code"
-            ]
+            stage["code"]
         )
     )
 
@@ -1555,7 +2389,121 @@ def score_stock(
 
 
 # ============================================================
+# COMMON RANKING ROW
+# ============================================================
+
+
+def build_ranking_row(
+    stock: dict[str, Any],
+    rank: int,
+) -> dict[str, Any]:
+
+    scores = (
+        stock.get("scores")
+        or {}
+    )
+
+    return {
+
+        "rank":
+            rank,
+
+        "stock_id":
+            stock.get(
+                "stock_id"
+            ),
+
+        "short_name":
+            stock.get(
+                "short_name"
+            ),
+
+        "market":
+            stock.get(
+                "market"
+            ),
+
+        "industry_name":
+            stock.get(
+                "industry_name"
+            ),
+
+        "close":
+            stock.get(
+                "latest",
+                {},
+            ).get(
+                "close"
+            ),
+
+        "change_pct":
+            stock.get(
+                "latest",
+                {},
+            ).get(
+                "change_pct"
+            ),
+
+        "fundamental":
+            scores.get(
+                "fundamental"
+            ),
+
+        "chip":
+            scores.get(
+                "chip"
+            ),
+
+        "technical":
+            scores.get(
+                "technical"
+            ),
+
+        "overall":
+            scores.get(
+                "overall"
+            ),
+
+        # Legacy fields temporarily retained
+        "strength":
+            scores.get(
+                "strength"
+            ),
+
+        "timing":
+            scores.get(
+                "timing"
+            ),
+
+        "buy_priority":
+            scores.get(
+                "buy_priority"
+            ),
+
+        "stage":
+            stock.get(
+                "stage"
+            ),
+
+        "trade_plan":
+            stock.get(
+                "trade_plan"
+            ),
+
+        "action":
+            stock.get(
+                "action"
+            ),
+    }
+
+
+# ============================================================
 # TOP10
+#
+# V3 definition:
+# "哪些股票值得優先研究？"
+#
+# Only Overall controls ranking.
 # ============================================================
 
 
@@ -1567,6 +2515,7 @@ def build_top10(
 ) -> dict[str, Any]:
 
     eligible = [
+
         stock
 
         for stock
@@ -1576,39 +2525,38 @@ def build_top10(
             stock.get(
                 "scores",
                 {},
-            )
-            .get(
+            ).get(
                 "status"
             )
             ==
             "READY"
         )
+        and
+        number(
+            stock.get(
+                "scores",
+                {},
+            ).get(
+                "overall"
+            )
+        )
+        is not None
     ]
 
     eligible.sort(
         key=lambda stock: (
-            -(
-                number(
-                    stock[
-                        "scores"
-                    ].get(
-                        "buy_priority"
-                    )
-                )
-                or
-                0
-            ),
 
             -(
                 number(
-                    stock[
-                        "scores"
-                    ].get(
-                        "strength"
+                    stock.get(
+                        "scores",
+                        {},
+                    ).get(
+                        "overall"
                     )
                 )
                 or
-                0
+                0.0
             ),
 
             stock.get(
@@ -1619,105 +2567,32 @@ def build_top10(
     )
 
     selected = (
-        eligible[
-            :10
-        ]
+        eligible[:10]
     )
 
-    rows = []
+    rows = [
 
-    for (
-        index,
-        stock,
-    ) in enumerate(
-        selected,
-        start=1,
-    ):
-
-        rows.append(
-            {
-                "rank":
-                    index,
-
-                "stock_id":
-                    stock.get(
-                        "stock_id"
-                    ),
-
-                "short_name":
-                    stock.get(
-                        "short_name"
-                    ),
-
-                "market":
-                    stock.get(
-                        "market"
-                    ),
-
-                "industry_name":
-                    stock.get(
-                        "industry_name"
-                    ),
-
-                "close":
-                    stock.get(
-                        "latest",
-                        {},
-                    )
-                    .get(
-                        "close"
-                    ),
-
-                "change_pct":
-                    stock.get(
-                        "latest",
-                        {},
-                    )
-                    .get(
-                        "change_pct"
-                    ),
-
-                "strength":
-                    stock[
-                        "scores"
-                    ].get(
-                        "strength"
-                    ),
-
-                "timing":
-                    stock[
-                        "scores"
-                    ].get(
-                        "timing"
-                    ),
-
-                "buy_priority":
-                    stock[
-                        "scores"
-                    ].get(
-                        "buy_priority"
-                    ),
-
-                "stage":
-                    stock.get(
-                        "stage"
-                    ),
-
-                "action":
-                    stock.get(
-                        "action"
-                    ),
-            }
+        build_ranking_row(
+            stock,
+            rank,
         )
 
-    if len(
-        eligible
-    ) >= 10:
+        for (
+            rank,
+            stock,
+        )
+        in enumerate(
+            selected,
+            start=1,
+        )
+    ]
+
+    if len(eligible) >= 10:
 
         status = "READY"
 
         message = (
-            "TOP10 已依 Buy Priority 排序。"
+            "TOP10 已依 V3 Overall Score 排序。"
         )
 
     elif eligible:
@@ -1725,8 +2600,7 @@ def build_top10(
         status = "PARTIAL"
 
         message = (
-            "目前可完整評分股票不足 10 檔，"
-            "待歷史資料逐步補齊。"
+            "目前可完整評分股票不足 10 檔。"
         )
 
     else:
@@ -1734,13 +2608,19 @@ def build_top10(
         status = "WAITING_DATA"
 
         message = (
-            "尚無股票具備完整評分資料，"
-            "歷史資料將由排程由近往遠補齊。"
+            "目前尚無股票具備完整 Overall Score。"
         )
 
     return {
+
         "model_version":
             SCORE_MODEL_VERSION,
+
+        "ranking_method":
+            "OVERALL_DESC",
+
+        "purpose":
+            "RESEARCH_PRIORITY",
 
         "data_date":
             data_date,
@@ -1755,9 +2635,210 @@ def build_top10(
             message,
 
         "eligible_count":
-            len(
-                eligible
+            len(eligible),
+
+        "rows":
+            rows,
+    }
+
+
+# ============================================================
+# ACTION PRIORITY
+#
+# V3 definition:
+# "目前哪些股票最接近可行動位置？"
+#
+# Stage priority:
+# BREAKOUT > READY > SETUP
+#
+# Within same Stage:
+# Overall DESC
+# ============================================================
+
+
+def build_action_priority(
+    stocks: list[
+        dict[str, Any]
+    ],
+    data_date: str | None,
+) -> dict[str, Any]:
+
+    allowed_stages = {
+        "BREAKOUT",
+        "READY",
+        "SETUP",
+    }
+
+    stage_priority = {
+        "BREAKOUT": 1,
+        "READY": 2,
+        "SETUP": 3,
+    }
+
+    eligible = []
+
+    for stock in stocks:
+
+        scores = (
+            stock.get("scores")
+            or {}
+        )
+
+        stage = (
+            stock.get("stage")
+            or {}
+        )
+
+        stage_code = (
+            stage.get("code")
+        )
+
+        overall = number(
+            scores.get("overall")
+        )
+
+        if (
+            scores.get("status")
+            !=
+            "READY"
+        ):
+
+            continue
+
+        if (
+            stage_code
+            not in
+            allowed_stages
+        ):
+
+            continue
+
+        if overall is None:
+
+            continue
+
+        eligible.append(stock)
+
+    eligible.sort(
+        key=lambda stock: (
+
+            stage_priority.get(
+                (
+                    stock.get("stage")
+                    or {}
+                ).get(
+                    "code"
+                ),
+                99,
             ),
+
+            -(
+                number(
+                    (
+                        stock.get("scores")
+                        or {}
+                    ).get(
+                        "overall"
+                    )
+                )
+                or
+                0.0
+            ),
+
+            stock.get(
+                "stock_id",
+                "",
+            ),
+        )
+    )
+
+    rows = [
+
+        build_ranking_row(
+            stock,
+            rank,
+        )
+
+        for (
+            rank,
+            stock,
+        )
+        in enumerate(
+            eligible,
+            start=1,
+        )
+    ]
+
+    if rows:
+
+        status = "READY"
+
+        message = (
+            "今日優先觀察已依 "
+            "BREAKOUT → READY → SETUP，"
+            "同 Stage 內依 Overall 排序。"
+        )
+
+    else:
+
+        status = "EMPTY"
+
+        message = (
+            "目前沒有 BREAKOUT、READY "
+            "或 SETUP 股票。"
+        )
+
+    stage_counts = {
+        "BREAKOUT": 0,
+        "READY": 0,
+        "SETUP": 0,
+    }
+
+    for stock in eligible:
+
+        stage_code = (
+            stock.get(
+                "stage",
+                {},
+            ).get(
+                "code"
+            )
+        )
+
+        if stage_code in stage_counts:
+
+            stage_counts[
+                stage_code
+            ] += 1
+
+    return {
+
+        "model_version":
+            SCORE_MODEL_VERSION,
+
+        "ranking_method":
+            "STAGE_THEN_OVERALL_DESC",
+
+        "purpose":
+            "ACTION_PRIORITY",
+
+        "data_date":
+            data_date,
+
+        "generated_at":
+            now_iso(),
+
+        "status":
+            status,
+
+        "message":
+            message,
+
+        "eligible_count":
+            len(eligible),
+
+        "stage_counts":
+            stage_counts,
 
         "rows":
             rows,
@@ -1778,7 +2859,8 @@ def main() -> int:
     )
 
     print(
-        "StockWaveScanner V2 - Score Engine"
+        "StockWaveScanner V3 "
+        "- Score Engine"
     )
 
     print(
@@ -1794,9 +2876,7 @@ def main() -> int:
         )
 
         stocks = (
-            payload.get(
-                "stocks"
-            )
+            payload.get("stocks")
             or []
         )
 
@@ -1805,6 +2885,11 @@ def main() -> int:
             raise RuntimeError(
                 "stocks.json contains no stocks"
             )
+
+        print(
+            f"Model       : "
+            f"{SCORE_MODEL_VERSION}"
+        )
 
         print(
             f"Stocks      : "
@@ -1828,6 +2913,10 @@ def main() -> int:
 
                 scored_count += 1
 
+        # ----------------------------------------------------
+        # STOCKS.JSON
+        # ----------------------------------------------------
+
         payload[
             "score_model_version"
         ] = SCORE_MODEL_VERSION
@@ -1845,6 +2934,10 @@ def main() -> int:
             payload,
         )
 
+        # ----------------------------------------------------
+        # TOP10 = RESEARCH PRIORITY
+        # ----------------------------------------------------
+
         top10 = (
             build_top10(
                 stocks,
@@ -1859,19 +2952,40 @@ def main() -> int:
             top10,
         )
 
+        # ----------------------------------------------------
+        # ACTION PRIORITY
+        # ----------------------------------------------------
+
+        action_priority = (
+            build_action_priority(
+                stocks,
+                payload.get(
+                    "data_date"
+                ),
+            )
+        )
+
+        write_json(
+            ACTION_PRIORITY_FILE,
+            action_priority,
+        )
+
+        # ----------------------------------------------------
+        # STATUS
+        # ----------------------------------------------------
+
         status = (
             load_json(
                 STATUS_FILE
             )
         )
 
-        total = len(
-            stocks
-        )
+        total = len(stocks)
 
         status[
             "score_model"
         ] = {
+
             "version":
                 SCORE_MODEL_VERSION,
 
@@ -1890,17 +3004,74 @@ def main() -> int:
                 total,
 
             "percent":
-                round(
-                    scored_count
-                    /
-                    total
-                    *
-                    100,
-                    1,
-                )
-                if total
-                else
-                0,
+                (
+                    round(
+                        scored_count
+                        /
+                        total
+                        *
+                        100,
+                        1,
+                    )
+                    if total
+                    else
+                    0
+                ),
+
+            "updated_at":
+                now_iso(),
+        }
+
+        status[
+            "ranking"
+        ] = {
+
+            "top10": {
+
+                "status":
+                    top10.get(
+                        "status"
+                    ),
+
+                "method":
+                    top10.get(
+                        "ranking_method"
+                    ),
+
+                "rows":
+                    len(
+                        top10.get(
+                            "rows",
+                            [],
+                        )
+                    ),
+            },
+
+            "action_priority": {
+
+                "status":
+                    action_priority.get(
+                        "status"
+                    ),
+
+                "method":
+                    action_priority.get(
+                        "ranking_method"
+                    ),
+
+                "rows":
+                    len(
+                        action_priority.get(
+                            "rows",
+                            [],
+                        )
+                    ),
+
+                "stage_counts":
+                    action_priority.get(
+                        "stage_counts"
+                    ),
+            },
 
             "updated_at":
                 now_iso(),
@@ -1910,6 +3081,10 @@ def main() -> int:
             STATUS_FILE,
             status,
         )
+
+        # ----------------------------------------------------
+        # RESULT
+        # ----------------------------------------------------
 
         print()
 
@@ -1926,29 +3101,59 @@ def main() -> int:
         )
 
         print(
-            f"Total Stocks : "
+            f"Total Stocks    : "
             f"{total:,}"
         )
 
         print(
-            f"Scored       : "
+            f"Scored          : "
             f"{scored_count:,}"
         )
 
         print(
-            f"Waiting      : "
+            f"Waiting         : "
             f"{total - scored_count:,}"
         )
 
         print(
-            f"TOP10 Rows   : "
+            f"TOP10 Rows      : "
             f"{len(top10['rows'])}"
+        )
+
+        print(
+            f"Action Priority : "
+            f"{len(action_priority['rows'])}"
         )
 
         print()
 
         print(
-            "[PASS] V2 score snapshot generated"
+            "Action Stage Counts"
+        )
+
+        print(
+            "--------------------"
+        )
+
+        print(
+            "BREAKOUT : "
+            f"{action_priority['stage_counts']['BREAKOUT']}"
+        )
+
+        print(
+            "READY    : "
+            f"{action_priority['stage_counts']['READY']}"
+        )
+
+        print(
+            "SETUP    : "
+            f"{action_priority['stage_counts']['SETUP']}"
+        )
+
+        print()
+
+        print(
+            "[PASS] V3 Step4E ranking snapshot generated"
         )
 
         return 0
@@ -1970,9 +3175,7 @@ def main() -> int:
         )
 
         print(
-            str(
-                exc
-            )
+            str(exc)
         )
 
         return 1

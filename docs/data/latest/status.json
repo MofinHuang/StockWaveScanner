@@ -1,0 +1,375 @@
+{
+  "model_version": "V2.1-DRAFT-2",
+  "environment": "DEV",
+  "data_date": "2026-09-24",
+  "generated_at": "2026-09-27T15:01:30+08:00",
+  "publish_status": "READY",
+  "stock_count": 1988,
+  "tdcc_date": "2026-09-24",
+  "coverage": {
+    "price": {
+      "ready": 1963,
+      "total": 1988,
+      "percent": 98.7
+    },
+    "institutional": {
+      "ready": 1820,
+      "total": 1988,
+      "percent": 91.5
+    },
+    "tdcc": {
+      "ready": 1988,
+      "total": 1988,
+      "percent": 100.0
+    },
+    "revenue": {
+      "ready": 1930,
+      "total": 1988,
+      "percent": 97.1
+    },
+    "financial": {
+      "ready": 1845,
+      "total": 1988,
+      "percent": 92.8
+    },
+    "overall": {
+      "ready": 1697,
+      "total": 1988,
+      "percent": 85.4
+    }
+  },
+  "sync_state": [
+    {
+      "dataset": "historical_price_migration",
+      "last_data_date": "2026-09-11",
+      "last_success_at": "2026-09-12 14:03:29",
+      "last_attempt_at": "2026-09-12 14:03:29",
+      "status": "SUCCESS",
+      "records_processed": 934366,
+      "error_message": null
+    },
+    {
+      "dataset": "institutional_tpex",
+      "last_data_date": "2026-09-24",
+      "last_success_at": "2026-09-25 15:35:43",
+      "last_attempt_at": "2026-09-25 15:35:43",
+      "status": "SUCCESS",
+      "records_processed": 0,
+      "error_message": null
+    },
+    {
+      "dataset": "institutional_twse",
+      "last_data_date": "2026-09-24",
+      "last_success_at": "2026-09-25 15:35:42",
+      "last_attempt_at": "2026-09-25 15:35:42",
+      "status": "SUCCESS",
+      "records_processed": 0,
+      "error_message": null
+    },
+    {
+      "dataset": "market_index_tpex",
+      "last_data_date": "2026-09-24",
+      "last_success_at": "2026-09-25 15:35:31",
+      "last_attempt_at": "2026-09-25 15:35:31",
+      "status": "SUCCESS",
+      "records_processed": 1,
+      "error_message": null
+    },
+    {
+      "dataset": "market_index_twse",
+      "last_data_date": "2026-09-24",
+      "last_success_at": "2026-09-25 15:35:31",
+      "last_attempt_at": "2026-09-25 15:35:31",
+      "status": "SUCCESS",
+      "records_processed": 1,
+      "error_message": null
+    },
+    {
+      "dataset": "monthly_revenue_backfill_tpex",
+      "last_data_date": "2026-08",
+      "last_success_at": "2026-09-13 03:30:21",
+      "last_attempt_at": "2026-09-13 03:30:21",
+      "status": "SUCCESS",
+      "records_processed": 21314,
+      "error_message": null
+    },
+    {
+      "dataset": "monthly_revenue_backfill_twse",
+      "last_data_date": "2026-08",
+      "last_success_at": "2026-09-13 03:30:21",
+      "last_attempt_at": "2026-09-13 03:30:21",
+      "status": "SUCCESS",
+      "records_processed": 25946,
+      "error_message": null
+    },
+    {
+      "dataset": "monthly_revenue_tpex",
+      "last_data_date": "2026-08",
+      "last_success_at": "2026-09-13 02:57:50",
+      "last_attempt_at": "2026-09-13 02:57:50",
+      "status": "SUCCESS",
+      "records_processed": 891,
+      "error_message": null
+    },
+    {
+      "dataset": "monthly_revenue_twse",
+      "last_data_date": "2026-08",
+      "last_success_at": "2026-09-13 02:57:48",
+      "last_attempt_at": "2026-09-13 02:57:48",
+      "status": "SUCCESS",
+      "records_processed": 1074,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2024_q3_tpex",
+      "last_data_date": "2024-Q3",
+      "last_success_at": "2026-09-19 23:09:36",
+      "last_attempt_at": "2026-09-19 23:09:36",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2024_q3_twse",
+      "last_data_date": "2024-Q3",
+      "last_success_at": "2026-09-20 01:07:00",
+      "last_attempt_at": "2026-09-20 01:07:00",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2024_q4_tpex",
+      "last_data_date": "2024-Q4",
+      "last_success_at": "2026-09-19 20:43:51",
+      "last_attempt_at": "2026-09-19 20:43:51",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2024_q4_twse",
+      "last_data_date": "2024-Q4",
+      "last_success_at": "2026-09-19 23:50:45",
+      "last_attempt_at": "2026-09-19 23:50:45",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q1_tpex",
+      "last_data_date": "2025-Q1",
+      "last_success_at": "2026-09-19 12:51:22",
+      "last_attempt_at": "2026-09-19 12:51:22",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q1_twse",
+      "last_data_date": "2025-Q1",
+      "last_success_at": "2026-09-19 12:49:10",
+      "last_attempt_at": "2026-09-19 12:49:10",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q2_tpex",
+      "last_data_date": "2025-Q2",
+      "last_success_at": "2026-09-19 06:20:43",
+      "last_attempt_at": "2026-09-19 06:20:43",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q2_twse",
+      "last_data_date": "2025-Q2",
+      "last_success_at": "2026-09-19 06:18:28",
+      "last_attempt_at": "2026-09-19 06:18:28",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q3_tpex",
+      "last_data_date": "2025-Q3",
+      "last_success_at": "2026-09-18 04:48:44",
+      "last_attempt_at": "2026-09-18 04:48:44",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q3_twse",
+      "last_data_date": "2025-Q3",
+      "last_success_at": "2026-09-18 15:01:15",
+      "last_attempt_at": "2026-09-18 15:01:15",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q4_tpex",
+      "last_data_date": "2025-Q4",
+      "last_success_at": "2026-09-17 20:24:08",
+      "last_attempt_at": "2026-09-17 20:24:08",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2025_q4_twse",
+      "last_data_date": "2025-Q4",
+      "last_success_at": "2026-09-18 04:44:04",
+      "last_attempt_at": "2026-09-18 04:44:04",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2026_q1_tpex",
+      "last_data_date": "2026-Q1",
+      "last_success_at": "2026-09-16 14:16:58",
+      "last_attempt_at": "2026-09-16 14:16:58",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2026_q1_twse",
+      "last_data_date": "2026-Q1",
+      "last_success_at": "2026-09-16 21:19:22",
+      "last_attempt_at": "2026-09-16 21:19:22",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2026_q2_tpex",
+      "last_data_date": "2026-Q2",
+      "last_success_at": "2026-09-16 14:12:37",
+      "last_attempt_at": "2026-09-16 14:12:37",
+      "status": "SUCCESS",
+      "records_processed": 894,
+      "error_message": null
+    },
+    {
+      "dataset": "qfin_hist_2026_q2_twse",
+      "last_data_date": "2026-Q2",
+      "last_success_at": "2026-09-16 21:17:54",
+      "last_attempt_at": "2026-09-16 21:17:54",
+      "status": "SUCCESS",
+      "records_processed": 1054,
+      "error_message": null
+    },
+    {
+      "dataset": "quarterly_financial_tpex_general",
+      "last_data_date": "2026-Q2",
+      "last_success_at": "2026-09-13 03:04:18",
+      "last_attempt_at": "2026-09-13 03:04:18",
+      "status": "SUCCESS",
+      "records_processed": 883,
+      "error_message": null
+    },
+    {
+      "dataset": "quarterly_financial_twse_general",
+      "last_data_date": "2026-Q2",
+      "last_success_at": "2026-09-13 03:04:15",
+      "last_attempt_at": "2026-09-13 03:04:15",
+      "status": "SUCCESS",
+      "records_processed": 1048,
+      "error_message": null
+    },
+    {
+      "dataset": "stock_master_tpex",
+      "last_data_date": "2026-09-25",
+      "last_success_at": "2026-09-25 15:35:24",
+      "last_attempt_at": "2026-09-25 15:35:24",
+      "status": "SUCCESS",
+      "records_processed": 893,
+      "error_message": null
+    },
+    {
+      "dataset": "stock_master_twse",
+      "last_data_date": "2026-09-25",
+      "last_success_at": "2026-09-25 15:35:24",
+      "last_attempt_at": "2026-09-25 15:35:24",
+      "status": "SUCCESS",
+      "records_processed": 1095,
+      "error_message": null
+    },
+    {
+      "dataset": "stock_price_tpex",
+      "last_data_date": "2026-09-24",
+      "last_success_at": "2026-09-25 15:35:40",
+      "last_attempt_at": "2026-09-25 15:35:40",
+      "status": "SUCCESS",
+      "records_processed": 0,
+      "error_message": null
+    },
+    {
+      "dataset": "stock_price_twse",
+      "last_data_date": "2026-09-24",
+      "last_success_at": "2026-09-25 15:35:39",
+      "last_attempt_at": "2026-09-25 15:35:39",
+      "status": "SUCCESS",
+      "records_processed": 0,
+      "error_message": null
+    },
+    {
+      "dataset": "tdcc_weekly",
+      "last_data_date": "2026-09-24",
+      "last_success_at": "2026-09-26 06:13:17",
+      "last_attempt_at": "2026-09-26 06:13:17",
+      "status": "SUCCESS",
+      "records_processed": 1988,
+      "error_message": null
+    },
+    {
+      "dataset": "v1_institutional_migration",
+      "last_data_date": "2026-08-14",
+      "last_success_at": "2026-09-12 12:17:58",
+      "last_attempt_at": "2026-09-12 12:17:58",
+      "status": "SUCCESS",
+      "records_processed": 114958,
+      "error_message": null
+    },
+    {
+      "dataset": "v1_tdcc_summary_migration",
+      "last_data_date": "2026-08-28",
+      "last_success_at": "2026-09-12 12:17:58",
+      "last_attempt_at": "2026-09-12 12:17:58",
+      "status": "SUCCESS",
+      "records_processed": 23744,
+      "error_message": null
+    }
+  ],
+  "score_model": {
+    "version": "V3-STEP4E-RESEARCH-1",
+    "status": "READY",
+    "scored_stocks": 1697,
+    "total_stocks": 1988,
+    "percent": 85.4,
+    "updated_at": "2026-09-27T15:06:15+08:00"
+  },
+  "ranking": {
+    "top10": {
+      "status": "READY",
+      "method": "OVERALL_DESC",
+      "rows": 10
+    },
+    "action_priority": {
+      "status": "READY",
+      "method": "STAGE_THEN_OVERALL_DESC",
+      "rows": 222,
+      "stage_counts": {
+        "BREAKOUT": 4,
+        "READY": 207,
+        "SETUP": 11
+      }
+    },
+    "updated_at": "2026-09-27T15:06:15+08:00"
+  }
+}

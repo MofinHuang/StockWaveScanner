@@ -1,0 +1,33 @@
+{
+  "model_version": "V2.1-DRAFT-2",
+  "data_date": "2026-09-24",
+  "generated_at": "2026-09-27T15:01:30+08:00",
+  "regime": {
+    "code": "BULLISH",
+    "label": "偏多",
+    "model_status": "PROVISIONAL",
+    "description": "上市與上櫃指數均位於 MA20 / MA60 多頭排列。"
+  },
+  "indices": {
+    "TWSE": {
+      "market": "TWSE",
+      "index_code": "TAIEX",
+      "trade_date": "2026-09-24",
+      "close": 48024.6,
+      "ma20": 46755.77,
+      "ma60": 45321.99,
+      "history_days": 102,
+      "status": "READY"
+    },
+    "TPEX": {
+      "market": "TPEX",
+      "index_code": "TPEX",
+      "trade_date": "2026-09-24",
+      "close": 412.99,
+      "ma20": 404.67,
+      "ma60": 396.33,
+      "history_days": 102,
+      "status": "READY"
+    }
+  }
+}

@@ -781,6 +781,20 @@ def price_snapshot(
         is not None
     ]
 
+    highs = [
+        float(
+            row["high"]
+        )
+
+        for row
+        in rows
+
+        if row.get(
+            "high"
+        )
+        is not None
+    ]
+
     latest_close = (
         safe_float(
             latest.get(
@@ -869,6 +883,57 @@ def price_snapshot(
                 /
                 average_volume
             )
+
+        # ========================================================
+    # V3 PRICE STRUCTURE
+    # ========================================================
+    #
+    # Breakout Price Candidate：
+    # 使用「今日以前 20 個交易日最高價」。
+    #
+    # 刻意排除今天：
+    # 若今天本身創新高，不可拿今天高點當自己的突破門檻。
+    #
+    # 目前屬 Research Metric，
+    # 後續還會配合平台高點 / Swing High / Backtest 校正。
+    # ========================================================
+
+    breakout_price_candidate = None
+
+    previous_rows = (
+        rows[:-1]
+        if len(rows) >= 2
+        else []
+    )
+
+    recent_previous_rows = (
+        previous_rows[-20:]
+    )
+
+    recent_highs = [
+        safe_float(
+            row.get(
+                "high"
+            )
+        )
+
+        for row
+        in recent_previous_rows
+    ]
+
+    recent_highs = [
+        value
+
+        for value
+        in recent_highs
+
+        if value is not None
+    ]
+
+    if recent_highs:
+        breakout_price_candidate = max(
+            recent_highs
+        )
 
     atr14 = (
         calculate_atr14(
@@ -988,6 +1053,12 @@ def price_snapshot(
         "atr14":
             round_or_none(
                 atr14,
+                2,
+            ),
+
+        "breakout_price_candidate":
+            round_or_none(
+                breakout_price_candidate,
                 2,
             ),
 
@@ -2437,6 +2508,11 @@ def build_stocks(
                         "atr14":
                             price.get(
                                 "atr14"
+                            ),
+
+                        "breakout_price_candidate":
+                            price.get(
+                                "breakout_price_candidate"
                             ),
 
                         "return_5d_pct":

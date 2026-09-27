@@ -1,27 +1,26 @@
 "use strict";
 
 
-const DATA_BASE =
-    "./data/latest";
-
+const DATA_FILE =
+    "./data/latest/v3_ui.json";
 
 const WATCHLIST_KEY =
-    "stockwavescanner.v2.watchlist";
+    "stockwavescanner.v3.watchlist";
 
 
 const state = {
 
-    status: null,
+    ui: null,
 
     market: null,
 
-    top10: null,
+    researchPriority: [],
+
+    actionPriority: [],
 
     stocks: [],
 
     stockMap: new Map(),
-
-    digest: null,
 
     currentPage: "home",
 };
@@ -42,13 +41,18 @@ document.addEventListener(
 );
 
 
+// ============================================================
+// LOAD
+// ============================================================
+
+
 async function loadJson(
-    fileName
+    url
 ) {
 
     const response =
         await fetch(
-            `${DATA_BASE}/${fileName}?t=${Date.now()}`,
+            `${url}?t=${Date.now()}`,
             {
                 cache: "no-store",
             }
@@ -57,7 +61,7 @@ async function loadJson(
     if (!response.ok) {
 
         throw new Error(
-            `${fileName}: HTTP ${response.status}`
+            `HTTP ${response.status}`
         );
     }
 
@@ -69,51 +73,39 @@ async function loadData() {
 
     try {
 
-        const [
-            status,
-            market,
-            top10,
-            stocks,
-            digest,
-        ] =
-            await Promise.all([
-                loadJson(
-                    "status.json"
-                ),
-                loadJson(
-                    "market.json"
-                ),
-                loadJson(
-                    "top10.json"
-                ),
-                loadJson(
-                    "stocks.json"
-                ),
-                loadJson(
-                    "analyst_digest.json"
-                ),
-            ]);
+        const payload =
+            await loadJson(
+                DATA_FILE
+            );
 
-        state.status =
-            status;
+        state.ui =
+            payload;
 
         state.market =
-            market;
+            payload.market || {};
 
-        state.top10 =
-            top10;
+        state.researchPriority =
+            payload
+                .research_priority
+                ?.rows
+            || [];
+
+        state.actionPriority =
+            payload
+                .action_priority
+                ?.rows
+            || [];
 
         state.stocks =
-            stocks.stocks || [];
-
-        state.digest =
-            digest;
+            payload.stocks || [];
 
         state.stockMap =
             new Map(
                 state.stocks.map(
                     stock => [
-                        stock.stock_id,
+                        String(
+                            stock.stock_id
+                        ),
                         stock,
                     ]
                 )
@@ -124,7 +116,7 @@ async function loadData() {
                 "headerStatus"
             )
             .textContent =
-                status.data_date
+                payload.data_date
                 || "READY";
 
     }
@@ -152,23 +144,37 @@ function renderLoadError(
     error
 ) {
 
-    const home =
+    const page =
         document.getElementById(
             "page-home"
         );
 
-    home.innerHTML = `
+    page.innerHTML = `
+
         <div class="empty-state">
-            <div class="empty-icon">⚠</div>
-            <div>UI 已啟用，但最新資料尚未發布。</div>
+
+            <div class="empty-icon">
+                ⚠
+            </div>
+
+            <div>
+                V3 UI 已啟用，但最新資料尚未發布。
+            </div>
+
             <div class="metric-sub">
                 ${escapeHtml(
                     error.message
                 )}
             </div>
+
         </div>
     `;
 }
+
+
+// ============================================================
+// NAVIGATION
+// ============================================================
 
 
 function bindNavigation() {
@@ -231,7 +237,7 @@ function switchPage(
         .getElementById(
             `page-${page}`
         )
-        .classList.add(
+        ?.classList.add(
             "active"
         );
 
@@ -269,10 +275,15 @@ function switchPage(
 }
 
 
+// ============================================================
+// RENDER ALL
+// ============================================================
+
+
 function renderAll() {
 
     if (
-        !state.status
+        !state.ui
     ) {
 
         return;
@@ -288,6 +299,11 @@ function renderAll() {
 }
 
 
+// ============================================================
+// HOME
+// ============================================================
+
+
 function renderHome() {
 
     const page =
@@ -297,10 +313,6 @@ function renderHome() {
 
     const regime =
         state.market?.regime
-        || {};
-
-    const coverage =
-        state.status?.coverage
         || {};
 
     const twse =
@@ -314,6 +326,24 @@ function renderHome() {
             ?.indices
             ?.TPEX
         || {};
+
+    const summary =
+        state.ui?.summary
+        || {};
+
+    const scores =
+        summary.scores
+        || {};
+
+    const stages =
+        summary.stage_distribution
+        || {};
+
+    const actionRows =
+        state.actionPriority.slice(
+            0,
+            10
+        );
 
     page.innerHTML = `
 
@@ -340,13 +370,13 @@ function renderHome() {
             <div class="metric-sub">
                 資料日：
                 ${escapeHtml(
-                    state.status.data_date
+                    state.ui.data_date
                     || "--"
                 )}
                 ・
                 Model：
                 ${escapeHtml(
-                    state.status.model_version
+                    state.ui.model_version
                     || "--"
                 )}
             </div>
@@ -370,60 +400,181 @@ function renderHome() {
 
 
         <div class="section-title">
-            資料完整度
+            V3 評分概況
         </div>
 
-        <div class="card">
+        <div class="score-summary-grid">
 
-            ${coverageRow(
-                "股價歷史",
-                coverage.price
+            ${summaryMetric(
+                "可評分股票",
+                scores.ready_count,
+                "檔"
             )}
 
-            ${coverageRow(
-                "法人籌碼",
-                coverage.institutional
+            ${summaryMetric(
+                "Overall 平均",
+                scores.overall_avg,
+                ""
             )}
 
-            ${coverageRow(
-                "TDCC",
-                coverage.tdcc
+            ${summaryMetric(
+                "基本面平均",
+                scores.fundamental_avg,
+                ""
             )}
 
-            ${coverageRow(
-                "月營收 24M",
-                coverage.revenue
+            ${summaryMetric(
+                "籌碼面平均",
+                scores.chip_avg,
+                ""
             )}
 
-            ${coverageRow(
-                "季財報 8Q",
-                coverage.financial
-            )}
-
-            ${coverageRow(
-                "完整可評分",
-                coverage.overall
+            ${summaryMetric(
+                "技術面平均",
+                scores.technical_avg,
+                ""
             )}
 
         </div>
 
 
         <div class="section-title">
-            系統狀態
+            Stage 分布
         </div>
 
-        <div class="card">
+        <div class="stage-summary-grid">
+
+            ${stageSummaryBox(
+                "BREAKOUT",
+                "突破確認",
+                stages.BREAKOUT
+            )}
+
+            ${stageSummaryBox(
+                "READY",
+                "接近買點",
+                stages.READY
+            )}
+
+            ${stageSummaryBox(
+                "SETUP",
+                "型態準備",
+                stages.SETUP
+            )}
+
+            ${stageSummaryBox(
+                "WATCH",
+                "持續觀察",
+                stages.WATCH
+            )}
+
+            ${stageSummaryBox(
+                "EXTENDED",
+                "漲幅延伸",
+                stages.EXTENDED
+            )}
+
+            ${stageSummaryBox(
+                "AVOID",
+                "暫不關注",
+                stages.AVOID
+            )}
+
+        </div>
+
+
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    今日優先觀察
+                </div>
+
+                <div class="section-subtitle">
+                    BREAKOUT → READY → SETUP
+                </div>
+
+            </div>
+
+            <div class="section-count">
+                ${state.actionPriority.length} 檔
+            </div>
+
+        </div>
+
+
+        <div class="stock-list">
 
             ${
-                renderSyncRows(
-                    state.status.sync_state
-                    || []
-                )
+                actionRows.length
+
+                ?
+
+                actionRows
+                    .map(
+                        stock =>
+                            stockRowHtml(
+                                stock,
+                                stock.rank,
+                                true
+                            )
+                    )
+                    .join("")
+
+                :
+
+                `
+                <div class="empty-state">
+                    目前沒有優先觀察股票
+                </div>
+                `
             }
 
         </div>
 
+
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    個股研究排行
+                </div>
+
+                <div class="section-subtitle">
+                    Overall Score TOP10
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="stock-list">
+
+            ${
+                state.researchPriority
+                    .slice(
+                        0,
+                        5
+                    )
+                    .map(
+                        stock =>
+                            stockRowHtml(
+                                stock,
+                                stock.rank
+                            )
+                    )
+                    .join("")
+            }
+
+        </div>
     `;
+
+    bindStockRows(
+        page
+    );
 }
 
 
@@ -476,60 +627,33 @@ function marketIndexCard(
 }
 
 
-function coverageRow(
-    name,
-    item
+function summaryMetric(
+    label,
+    value,
+    suffix
 ) {
-
-    const value =
-        item
-        || {
-            ready: 0,
-            total: 0,
-            percent: 0,
-        };
 
     return `
 
-        <div class="progress-row">
+        <div class="summary-metric">
 
-            <div class="progress-header">
-
-                <span class="progress-name">
-                    ${escapeHtml(
-                        name
-                    )}
-                </span>
-
-                <span class="progress-value">
-                    ${value.ready || 0}
-                    /
-                    ${value.total || 0}
-                    ・
-                    ${formatNumber(
-                        value.percent,
-                        1
-                    )}%
-                </span>
-
+            <div class="summary-metric-label">
+                ${escapeHtml(
+                    label
+                )}
             </div>
 
-            <div class="progress-track">
-
-                <div
-                    class="progress-fill"
-                    style="
-                        width:
-                        ${Math.max(
-                            0,
-                            Math.min(
-                                100,
-                                value.percent || 0
-                            )
-                        )}%
-                    "
-                ></div>
-
+            <div class="summary-metric-value">
+                ${formatNumber(
+                    value,
+                    value === null
+                    || value === undefined
+                    ? 0
+                    : 1
+                )}
+                ${escapeHtml(
+                    suffix || ""
+                )}
             </div>
 
         </div>
@@ -537,57 +661,41 @@ function coverageRow(
 }
 
 
-function renderSyncRows(
-    rows
+function stageSummaryBox(
+    code,
+    label,
+    count
 ) {
 
-    if (
-        !rows.length
-    ) {
+    return `
 
-        return `
-            <div class="metric-sub">
-                尚無 Sync State
+        <div class="
+            stage-summary-box
+            stage-${escapeHtml(
+                code.toLowerCase()
+            )}
+        ">
+
+            <div class="stage-summary-count">
+                ${formatInteger(
+                    count || 0
+                )}
             </div>
-        `;
-    }
 
-    return rows
-        .map(
-            row => `
+            <div class="stage-summary-label">
+                ${escapeHtml(
+                    label
+                )}
+            </div>
 
-                <div class="sync-row">
-
-                    <div>
-
-                        <div class="sync-name">
-                            ${escapeHtml(
-                                row.dataset
-                            )}
-                        </div>
-
-                        <div class="sync-date">
-                            ${
-                                escapeHtml(
-                                    row.last_data_date
-                                    || "--"
-                                )
-                            }
-                        </div>
-
-                    </div>
-
-                    <div>
-                        ${statusBadge(
-                            row.status
-                        )}
-                    </div>
-
-                </div>
-            `
-        )
-        .join("");
+        </div>
+    `;
 }
+
+
+// ============================================================
+// TOP10 PAGE
+// ============================================================
 
 
 function renderTop10() {
@@ -598,98 +706,70 @@ function renderTop10() {
         );
 
     const rows =
-        state.top10?.rows
-        || [];
-
-    if (
-        !rows.length
-    ) {
-
-        const readiness =
-            state.top10?.readiness
-            ||
-            state.status
-                ?.coverage
-                ?.overall
-            || {};
-
-        page.innerHTML = `
-
-            <div class="section-title">
-                今日 TOP10
-            </div>
-
-            <div class="empty-state">
-
-                <div class="empty-icon">
-                    ◷
-                </div>
-
-                <div>
-                    TOP10 等待資料補齊
-                </div>
-
-                <div class="metric-sub">
-                    ${
-                        escapeHtml(
-                            state.top10
-                                ?.message
-                            ||
-                            "尚未產生排名"
-                        )
-                    }
-                </div>
-
-                <div
-                    style="
-                        margin-top: 16px;
-                    "
-                >
-                    完整資料：
-                    ${
-                        readiness.ready
-                        || 0
-                    }
-                    /
-                    ${
-                        readiness.total
-                        || 0
-                    }
-
-                </div>
-
-            </div>
-        `;
-
-        return;
-    }
+        state.researchPriority;
 
     page.innerHTML = `
 
-        <div class="section-title">
-            今日 TOP10
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    個股研究排行
+                </div>
+
+                <div class="section-subtitle">
+                    依 Overall Score 由高至低排序
+                </div>
+
+            </div>
+
+            <div class="section-count">
+                TOP ${rows.length}
+            </div>
+
         </div>
 
+
+        <div class="ranking-note">
+
+            <strong>研究排行</strong>
+            用來找值得優先研究的股票。
+
+            <br>
+
+            是否接近可行動位置，
+            仍需搭配 Stage 與 Trade Plan。
+
+        </div>
+
+
         <div class="stock-list">
+
             ${
+                rows.length
+
+                ?
+
                 rows
-                .map(
-                    row => {
-
-                        const stock =
-                            state.stockMap.get(
-                                row.stock_id
+                    .map(
+                        stock =>
+                            stockRowHtml(
+                                stock,
+                                stock.rank
                             )
-                            || row;
+                    )
+                    .join("")
 
-                        return stockRowHtml(
-                            stock,
-                            row.rank
-                        );
-                    }
-                )
-                .join("")
+                :
+
+                `
+                <div class="empty-state">
+                    尚未產生研究排行
+                </div>
+                `
             }
+
         </div>
     `;
 
@@ -697,6 +777,11 @@ function renderTop10() {
         page
     );
 }
+
+
+// ============================================================
+// RESEARCH PAGE
+// ============================================================
 
 
 function renderResearch() {
@@ -720,11 +805,54 @@ function renderResearch() {
 
         </div>
 
+
+        <div
+            id="researchFilters"
+            class="filter-bar"
+        >
+
+            <button
+                class="filter-button active"
+                data-stage="ALL"
+            >
+                全部
+            </button>
+
+            <button
+                class="filter-button"
+                data-stage="BREAKOUT"
+            >
+                突破
+            </button>
+
+            <button
+                class="filter-button"
+                data-stage="READY"
+            >
+                Ready
+            </button>
+
+            <button
+                class="filter-button"
+                data-stage="SETUP"
+            >
+                Setup
+            </button>
+
+            <button
+                class="filter-button"
+                data-stage="WATCH"
+            >
+                觀察
+            </button>
+
+        </div>
+
+
         <div
             id="researchList"
             class="stock-list"
         ></div>
-
     `;
 
     const input =
@@ -736,111 +864,157 @@ function renderResearch() {
         "input",
         () => {
 
-            renderResearchList(
-                input.value
-            );
+            renderResearchList();
         }
     );
 
-    renderResearchList(
-        ""
-    );
+    document
+        .querySelectorAll(
+            "#researchFilters .filter-button"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        document
+                            .querySelectorAll(
+                                "#researchFilters .filter-button"
+                            )
+                            .forEach(
+                                item =>
+                                    item.classList.remove(
+                                        "active"
+                                    )
+                            );
+
+                        button.classList.add(
+                            "active"
+                        );
+
+                        renderResearchList();
+                    }
+                );
+            }
+        );
+
+    renderResearchList();
 }
 
 
-function renderResearchList(
-    query
-) {
+function renderResearchList() {
 
     const container =
         document.getElementById(
             "researchList"
         );
 
-    if (
-        !container
-    ) {
+    if (!container) {
 
         return;
     }
 
-    const normalized =
+    const input =
+        document.getElementById(
+            "stockSearch"
+        );
+
+    const query =
         String(
-            query
+            input?.value
             || ""
         )
         .trim()
         .toLowerCase();
 
-    let rows =
-        state.stocks;
+    const stageFilter =
+        document
+            .querySelector(
+                "#researchFilters .filter-button.active"
+            )
+            ?.dataset
+            ?.stage
+        || "ALL";
 
-    if (
-        normalized
-    ) {
+    let rows =
+        [...state.stocks];
+
+    if (query) {
 
         rows =
             rows.filter(
                 stock => {
 
                     const searchable = [
+
                         stock.stock_id,
-                        stock.stock_name,
+
                         stock.short_name,
+
                         stock.industry_name,
+
                         stock.market,
+
                     ]
                     .filter(Boolean)
                     .join(" ")
                     .toLowerCase();
 
                     return searchable.includes(
-                        normalized
+                        query
                     );
                 }
             );
     }
 
     if (
-        !normalized
+        stageFilter !== "ALL"
     ) {
 
         rows =
-            [...rows]
-            .sort(
-                (
-                    a,
-                    b
-                ) => {
-
-                    const aChange =
-                        a.latest
-                            ?.change_pct
-                        ?? -99999;
-
-                    const bChange =
-                        b.latest
-                            ?.change_pct
-                        ?? -99999;
-
-                    return (
-                        bChange
-                        -
-                        aChange
-                    );
-                }
+            rows.filter(
+                stock =>
+                    stock.stage?.code
+                    ===
+                    stageFilter
             );
     }
+
+    rows.sort(
+        (
+            a,
+            b
+        ) => {
+
+            const aOverall =
+                Number(
+                    a.score?.overall
+                    ?? -999
+                );
+
+            const bOverall =
+                Number(
+                    b.score?.overall
+                    ?? -999
+                );
+
+            return (
+                bOverall
+                -
+                aOverall
+            );
+        }
+    );
 
     rows =
         rows.slice(
             0,
-            120
+            150
         );
 
-    if (
-        !rows.length
-    ) {
+    if (!rows.length) {
 
         container.innerHTML = `
 
@@ -868,21 +1042,28 @@ function renderResearchList(
 }
 
 
+// ============================================================
+// STOCK ROW
+// ============================================================
+
+
 function stockRowHtml(
     stock,
-    rank = null
+    rank = null,
+    showAction = false
 ) {
 
-    const latest =
-        stock.latest
+    const price =
+        stock.price
         || {};
 
-    const readiness =
-        stock.readiness
+    const score =
+        stock.score
         || {};
 
-    const change =
-        latest.change_pct;
+    const stage =
+        stock.stage
+        || {};
 
     return `
 
@@ -893,25 +1074,30 @@ function stockRowHtml(
             )}"
         >
 
-            <div>
+            <div class="stock-main">
 
                 <div class="stock-title">
 
                     ${
                         rank !== null
+
                         ?
-                        `<span class="badge badge-blue">
+
+                        `
+                        <span class="rank-badge">
                             #${rank}
-                        </span>`
+                        </span>
+                        `
+
                         :
+
                         ""
                     }
 
                     <span>
                         ${escapeHtml(
                             stock.short_name
-                            ||
-                            stock.stock_name
+                            || "--"
                         )}
                     </span>
 
@@ -923,23 +1109,19 @@ function stockRowHtml(
 
                 </div>
 
+
                 <div class="stock-meta">
 
-                    <span class="badge badge-blue">
-                        ${escapeHtml(
-                            stock.market
-                        )}
-                    </span>
-
-                    ${
-                        statusBadge(
-                            readiness.overall
-                        )
-                    }
+                    ${stageBadge(
+                        stage.code,
+                        stage.label
+                    )}
 
                     ${
                         stock.industry_name
+
                         ?
+
                         `
                         <span class="badge badge-blue">
                             ${escapeHtml(
@@ -947,19 +1129,81 @@ function stockRowHtml(
                             )}
                         </span>
                         `
+
                         :
+
                         ""
                     }
 
                 </div>
 
+
+                <div class="score-inline">
+
+                    <span>
+                        Overall
+                        <strong>
+                            ${formatNumber(
+                                score.overall,
+                                1
+                            )}
+                        </strong>
+                    </span>
+
+                    <span>
+                        基本
+                        ${formatNumber(
+                            score.fundamental,
+                            0
+                        )}
+                    </span>
+
+                    <span>
+                        籌碼
+                        ${formatNumber(
+                            score.chip,
+                            0
+                        )}
+                    </span>
+
+                    <span>
+                        技術
+                        ${formatNumber(
+                            score.technical,
+                            0
+                        )}
+                    </span>
+
+                </div>
+
+
+                ${
+                    showAction
+                    && stock.action
+
+                    ?
+
+                    `
+                    <div class="stock-action">
+                        ${escapeHtml(
+                            stock.action
+                        )}
+                    </div>
+                    `
+
+                    :
+
+                    ""
+                }
+
             </div>
+
 
             <div class="stock-price">
 
                 <div class="stock-price-main">
                     ${formatNumber(
-                        latest.close,
+                        price.close,
                         2
                     )}
                 </div>
@@ -968,12 +1212,12 @@ function stockRowHtml(
                     class="
                         stock-change
                         ${changeClass(
-                            change
+                            price.change_pct
                         )}
                     "
                 >
                     ${formatPercent(
-                        change
+                        price.change_pct
                     )}
                 </div>
 
@@ -1009,6 +1253,11 @@ function bindStockRows(
 }
 
 
+// ============================================================
+// WATCHLIST
+// ============================================================
+
+
 function renderWatchlist() {
 
     const page =
@@ -1021,20 +1270,20 @@ function renderWatchlist() {
 
     const rows =
         Object
-        .keys(
-            watchlist
-        )
-        .map(
-            stockId =>
-                state.stockMap.get(
-                    stockId
-                )
-        )
-        .filter(Boolean);
+            .keys(
+                watchlist
+            )
+            .map(
+                stockId =>
+                    state.stockMap.get(
+                        String(
+                            stockId
+                        )
+                    )
+            )
+            .filter(Boolean);
 
-    if (
-        !rows.length
-    ) {
+    if (!rows.length) {
 
         page.innerHTML = `
 
@@ -1053,7 +1302,7 @@ function renderWatchlist() {
                 </div>
 
                 <div class="metric-sub">
-                    從研究頁打開個股後即可加入
+                    從個股頁或排行打開股票後即可加入
                 </div>
 
             </div>
@@ -1062,23 +1311,52 @@ function renderWatchlist() {
         return;
     }
 
+    rows.sort(
+        (
+            a,
+            b
+        ) =>
+            Number(
+                b.score?.overall
+                ?? 0
+            )
+            -
+            Number(
+                a.score?.overall
+                ?? 0
+            )
+    );
+
     page.innerHTML = `
 
-        <div class="section-title">
-            自選股票
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    自選股票
+                </div>
+
+                <div class="section-subtitle">
+                    ${rows.length} 檔
+                </div>
+
+            </div>
+
         </div>
+
 
         <div class="stock-list">
 
             ${
                 rows
-                .map(
-                    stock =>
-                        stockRowHtml(
-                            stock
-                        )
-                )
-                .join("")
+                    .map(
+                        stock =>
+                            stockRowHtml(
+                                stock
+                            )
+                    )
+                    .join("")
             }
 
         </div>
@@ -1090,18 +1368,23 @@ function renderWatchlist() {
 }
 
 
+// ============================================================
+// STOCK DETAIL
+// ============================================================
+
+
 function showStockDetail(
     stockId
 ) {
 
     const stock =
         state.stockMap.get(
-            stockId
+            String(
+                stockId
+            )
         );
 
-    if (
-        !stock
-    ) {
+    if (!stock) {
 
         return;
     }
@@ -1116,38 +1399,24 @@ function showStockDetail(
             "detailContent"
         );
 
-    const latest =
-        stock.latest
+    const price =
+        stock.price
+        || {};
+
+    const score =
+        stock.score
         || {};
 
     const technical =
-        stock.technical
+        stock.technical_detail
         || {};
 
-    const institutional =
-        stock.institutional
+    const stage =
+        stock.stage
         || {};
 
-    const tdcc =
-        stock.tdcc
-        || {};
-
-    const revenue =
-        stock.fundamental
-            ?.revenue
-        || {};
-
-    const financial =
-        stock.fundamental
-            ?.financial
-        || {};
-
-    const scores =
-        stock.scores
-        || {};
-
-    const readiness =
-        stock.readiness
+    const trade =
+        stock.trade_plan
         || {};
 
     const watchlist =
@@ -1175,8 +1444,7 @@ function showStockDetail(
                 <div class="detail-stock-name">
                     ${escapeHtml(
                         stock.short_name
-                        ||
-                        stock.stock_name
+                        || "--"
                     )}
                 </div>
 
@@ -1187,19 +1455,26 @@ function showStockDetail(
                     ・
                     ${escapeHtml(
                         stock.market
+                        || "--"
                     )}
+
                     ${
                         stock.industry_name
+
                         ?
+
                         `・ ${escapeHtml(
                             stock.industry_name
                         )}`
+
                         :
+
                         ""
                     }
                 </div>
 
             </div>
+
 
             <button
                 id="detailClose"
@@ -1221,7 +1496,7 @@ function showStockDetail(
 
                 <div class="metric-value">
                     ${formatNumber(
-                        latest.close,
+                        price.close,
                         2
                     )}
                 </div>
@@ -1230,16 +1505,17 @@ function showStockDetail(
                     class="
                         metric-sub
                         ${changeClass(
-                            latest.change_pct
+                            price.change_pct
                         )}
                     "
                 >
                     ${formatPercent(
-                        latest.change_pct
+                        price.change_pct
                     )}
                 </div>
 
             </div>
+
 
             <div class="card metric-card">
 
@@ -1247,20 +1523,19 @@ function showStockDetail(
                     Stage
                 </div>
 
-                <div class="metric-value">
-                    ${escapeHtml(
-                        stock.stage
-                            ?.label
-                        ||
-                        "--"
+                <div class="metric-value stage-title">
+
+                    ${stageBadge(
+                        stage.code,
+                        stage.label
                     )}
+
                 </div>
 
                 <div class="metric-sub">
                     ${escapeHtml(
                         stock.action
-                        ||
-                        "--"
+                        || "--"
                     )}
                 </div>
 
@@ -1269,22 +1544,36 @@ function showStockDetail(
         </div>
 
 
-        <div class="score-grid">
+        <div class="detail-section">
 
-            ${scoreBox(
-                "Strength",
-                scores.strength
-            )}
+            <div class="detail-section-title">
+                V3 綜合評分
+            </div>
 
-            ${scoreBox(
-                "Timing",
-                scores.timing
-            )}
+            <div class="score-grid score-grid-4">
 
-            ${scoreBox(
-                "Buy Priority",
-                scores.buy_priority
-            )}
+                ${scoreBox(
+                    "Overall",
+                    score.overall,
+                    true
+                )}
+
+                ${scoreBox(
+                    "基本面",
+                    score.fundamental
+                )}
+
+                ${scoreBox(
+                    "籌碼面",
+                    score.chip
+                )}
+
+                ${scoreBox(
+                    "技術面",
+                    score.technical
+                )}
+
+            </div>
 
         </div>
 
@@ -1292,112 +1581,51 @@ function showStockDetail(
         <div class="detail-section">
 
             <div class="detail-section-title">
-                資料完整度
+                Technical V2
             </div>
 
             ${keyValue(
-                "股價",
-                readinessStatus(
-                    readiness.price
-                )
-            )}
-
-            ${keyValue(
-                "法人",
-                readinessStatus(
-                    readiness.institutional
-                )
-            )}
-
-            ${keyValue(
-                "TDCC",
-                readinessStatus(
-                    readiness.tdcc
-                )
-            )}
-
-            ${keyValue(
-                "月營收",
-                readinessStatus(
-                    readiness.revenue
-                )
-            )}
-
-            ${keyValue(
-                "季財報",
-                readinessStatus(
-                    readiness.financial
-                )
-            )}
-
-            ${keyValue(
-                "完整度",
-                `${
-                    formatNumber(
-                        readiness.percent,
-                        1
-                    )
-                }%`
-            )}
-
-        </div>
-
-
-        <div class="detail-section">
-
-            <div class="detail-section-title">
-                技術資料
-            </div>
-
-            ${keyValue(
-                "MA20",
+                "趨勢結構",
                 formatNumber(
-                    technical.ma20,
-                    2
+                    technical.trend_structure,
+                    1
                 )
             )}
 
             ${keyValue(
-                "MA60",
+                "價格位置",
                 formatNumber(
-                    technical.ma60,
-                    2
+                    technical.price_position,
+                    1
                 )
             )}
 
             ${keyValue(
-                "ATR14",
+                "動能品質",
                 formatNumber(
-                    technical.atr14,
-                    2
+                    technical.momentum_quality,
+                    1
                 )
             )}
 
             ${keyValue(
-                "5D Return",
+                "MA20 / MA60 乖離",
                 formatPercent(
-                    technical.return_5d_pct
+                    technical.ma20_ma60_pct
                 )
             )}
 
             ${keyValue(
-                "10D Return",
+                "股價 / MA20 乖離",
                 formatPercent(
-                    technical.return_10d_pct
+                    technical.close_ma20_pct
                 )
             )}
 
             ${keyValue(
-                "20D Return",
-                formatPercent(
-                    technical.return_20d_pct
-                )
-            )}
-
-            ${keyValue(
-                "Volume Ratio 20D",
+                "距 MA20 ATR",
                 formatNumber(
-                    technical.volume_ratio_20,
+                    technical.close_ma20_atr,
                     2
                 )
             )}
@@ -1408,174 +1636,68 @@ function showStockDetail(
         <div class="detail-section">
 
             <div class="detail-section-title">
-                法人籌碼
+                Trade Plan
             </div>
 
             ${keyValue(
-                "外資今日",
-                formatInteger(
-                    institutional.foreign_net_latest
+                "買進區間",
+                priceRange(
+                    trade.buy_zone_low,
+                    trade.buy_zone_high
                 )
             )}
 
             ${keyValue(
-                "外資 5D",
-                formatInteger(
-                    institutional.foreign_5d_net
-                )
-            )}
-
-            ${keyValue(
-                "外資 20D",
-                formatInteger(
-                    institutional.foreign_20d_net
-                )
-            )}
-
-            ${keyValue(
-                "投信 5D",
-                formatInteger(
-                    institutional.trust_5d_net
-                )
-            )}
-
-            ${keyValue(
-                "自營商 5D",
-                formatInteger(
-                    institutional.dealer_5d_net
-                )
-            )}
-
-        </div>
-
-
-        <div class="detail-section">
-
-            <div class="detail-section-title">
-                TDCC
-            </div>
-
-            ${keyValue(
-                "資料日",
-                tdcc.data_date
-                || "--"
-            )}
-
-            ${keyValue(
-                "大戶持股 %",
-                formatPercentRaw(
-                    tdcc.large_holder_pct
-                )
-            )}
-
-            ${keyValue(
-                "散戶持股 %",
-                formatPercentRaw(
-                    tdcc.retail_holder_pct
-                )
-            )}
-
-            ${keyValue(
-                "大戶變化",
-                formatPercentRaw(
-                    tdcc.large_holder_change
-                )
-            )}
-
-        </div>
-
-
-        <div class="detail-section">
-
-            <div class="detail-section-title">
-                月營收
-            </div>
-
-            ${keyValue(
-                "月份",
-                revenue.revenue_month
-                || "--"
-            )}
-
-            ${keyValue(
-                "月營收",
-                formatInteger(
-                    revenue.revenue
-                )
-            )}
-
-            ${keyValue(
-                "YoY",
+                "距買進區",
                 formatPercent(
-                    revenue.revenue_yoy_pct
+                    trade.distance_to_buy_zone_pct
                 )
             )}
 
             ${keyValue(
-                "MoM",
-                formatPercent(
-                    revenue.revenue_mom_pct
-                )
-            )}
-
-            ${keyValue(
-                "歷史",
-                `${
-                    revenue.history_months
-                    || 0
-                } / 24 月`
-            )}
-
-        </div>
-
-
-        <div class="detail-section">
-
-            <div class="detail-section-title">
-                季財報
-            </div>
-
-            ${keyValue(
-                "期間",
-                financial.period
-                || "--"
-            )}
-
-            ${keyValue(
-                "EPS",
+                "突破價",
                 formatNumber(
-                    financial.eps,
+                    trade.breakout_price,
                     2
                 )
             )}
 
             ${keyValue(
-                "毛利率",
-                formatPercentRaw(
-                    financial.gross_margin_pct
+                "距突破價",
+                formatPercent(
+                    trade.breakout_distance_pct
                 )
             )}
 
             ${keyValue(
-                "營業利益率",
-                formatPercentRaw(
-                    financial.operating_margin_pct
+                "風險價",
+                formatNumber(
+                    trade.risk_price,
+                    2
                 )
             )}
 
             ${keyValue(
-                "淨利率",
+                "目前風險",
                 formatPercentRaw(
-                    financial.net_margin_pct
+                    trade.current_risk_pct
                 )
             )}
 
             ${keyValue(
-                "歷史",
-                `${
-                    financial.history_quarters
-                    || 0
-                } / 8 季`
+                "目標區間",
+                priceRange(
+                    trade.target_low,
+                    trade.target_high
+                )
+            )}
+
+            ${keyValue(
+                "Reward / Risk",
+                formatNumber(
+                    trade.reward_risk_ratio,
+                    2
+                )
             )}
 
         </div>
@@ -1590,6 +1712,7 @@ function showStockDetail(
             <div class="position-grid">
 
                 <label class="position-label">
+
                     平均成本
 
                     <input
@@ -1597,16 +1720,17 @@ function showStockDetail(
                         class="position-input"
                         type="number"
                         step="0.01"
-                        value="${
-                            escapeHtml(
-                                position.avg_cost
-                                ?? ""
-                            )
-                        }"
+                        value="${escapeHtml(
+                            position.avg_cost
+                            ?? ""
+                        )}"
                     >
+
                 </label>
 
+
                 <label class="position-label">
+
                     股數
 
                     <input
@@ -1614,28 +1738,28 @@ function showStockDetail(
                         class="position-input"
                         type="number"
                         step="1"
-                        value="${
-                            escapeHtml(
-                                position.shares
-                                ?? ""
-                            )
-                        }"
+                        value="${escapeHtml(
+                            position.shares
+                            ?? ""
+                        )}"
                     >
+
                 </label>
 
             </div>
 
-            ${
-                positionSummary(
-                    stock,
-                    position
-                )
-            }
+
+            ${positionSummary(
+                stock,
+                position
+            )}
+
 
             <button
                 id="saveWatchlist"
                 class="primary-button"
             >
+
                 ${
                     isWatching
                     ?
@@ -1643,11 +1767,15 @@ function showStockDetail(
                     :
                     "加入自選股票"
                 }
+
             </button>
+
 
             ${
                 isWatching
+
                 ?
+
                 `
                 <button
                     id="removeWatchlist"
@@ -1656,12 +1784,13 @@ function showStockDetail(
                     移除自選股票
                 </button>
                 `
+
                 :
+
                 ""
             }
 
         </div>
-
     `;
 
     document
@@ -1747,14 +1876,23 @@ function hideStockDetail() {
 }
 
 
+// ============================================================
+// UI HELPERS
+// ============================================================
+
+
 function scoreBox(
     name,
-    value
+    value,
+    primary = false
 ) {
 
     return `
 
-        <div class="score-box">
+        <div class="
+            score-box
+            ${primary ? "score-box-primary" : ""}
+        ">
 
             <div class="score-name">
                 ${escapeHtml(
@@ -1767,12 +1905,16 @@ function scoreBox(
                     value === null
                     ||
                     value === undefined
+
                     ?
+
                     "--"
+
                     :
+
                     formatNumber(
                         value,
-                        0
+                        1
                     )
                 }
             </div>
@@ -1811,133 +1953,79 @@ function keyValue(
 }
 
 
-function readinessStatus(
-    status
+function stageBadge(
+    code,
+    label
 ) {
 
-    if (
-        status === "READY"
-    ) {
-
-        return "READY";
-    }
-
-    return "補資料中";
-}
-
-
-function positionSummary(
-    stock,
-    position
-) {
-
-    const shares =
-        Number(
-            position.shares
-            || 0
-        );
-
-    const avgCost =
-        Number(
-            position.avg_cost
-            || 0
-        );
-
-    const latest =
-        Number(
-            stock.latest
-                ?.close
-            || 0
-        );
-
-    if (
-        shares <= 0
-        ||
-        avgCost <= 0
-        ||
-        latest <= 0
-    ) {
-
-        return `
-            <div
-                class="metric-sub"
-                style="
-                    margin-top: 10px;
-                "
-            >
-                輸入平均成本與股數後，
-                即可查看未實現損益。
-            </div>
-        `;
-    }
-
-    const cost =
-        shares
-        *
-        avgCost;
-
-    const marketValue =
-        shares
-        *
-        latest;
-
-    const pnl =
-        marketValue
-        -
-        cost;
-
-    const returnPct =
-        cost
-        ?
-        (
-            pnl
-            /
-            cost
-            *
-            100
+    const normalized =
+        String(
+            code
+            || "UNKNOWN"
         )
-        :
-        0;
+        .toUpperCase();
 
     return `
 
-        <div
-            style="
-                margin-top: 10px;
-            "
-        >
-
-            ${keyValue(
-                "投入成本",
-                formatInteger(
-                    cost
-                )
+        <span class="
+            stage-badge
+            stage-badge-${escapeHtml(
+                normalized.toLowerCase()
             )}
-
-            ${keyValue(
-                "目前市值",
-                formatInteger(
-                    marketValue
-                )
+        ">
+            ${escapeHtml(
+                label
+                || normalized
             )}
-
-            ${keyValue(
-                "未實現損益",
-                formatInteger(
-                    pnl
-                )
-            )}
-
-            ${keyValue(
-                "報酬率",
-                formatPercent(
-                    returnPct
-                )
-            )}
-
-        </div>
+        </span>
     `;
 }
+
+
+function statusBadge(
+    status
+) {
+
+    const normalized =
+        String(
+            status
+            || ""
+        )
+        .toUpperCase();
+
+    if (
+        normalized === "READY"
+        ||
+        normalized === "SUCCESS"
+        ||
+        normalized === "STORED"
+    ) {
+
+        return `
+
+            <span class="badge badge-ready">
+                ${escapeHtml(
+                    normalized
+                )}
+            </span>
+        `;
+    }
+
+    return `
+
+        <span class="badge badge-wait">
+            ${escapeHtml(
+                normalized
+                || "WAIT"
+            )}
+        </span>
+    `;
+}
+
+
+// ============================================================
+// WATCHLIST STORAGE
+// ============================================================
 
 
 function getWatchlist() {
@@ -1949,9 +2037,7 @@ function getWatchlist() {
                 WATCHLIST_KEY
             );
 
-        if (
-            !raw
-        ) {
+        if (!raw) {
 
             return {};
         }
@@ -2028,11 +2114,6 @@ function saveWatchlistPosition(
             )
             :
             0,
-
-        first_buy_date:
-            old.first_buy_date
-            ||
-            null,
     };
 
     localStorage.setItem(
@@ -2070,69 +2151,138 @@ function removeWatchlist(
 }
 
 
-function statusBadge(
-    status
+function positionSummary(
+    stock,
+    position
 ) {
 
-    const normalized =
-        String(
-            status
-            || ""
-        )
-        .toUpperCase();
+    const shares =
+        Number(
+            position.shares
+            || 0
+        );
+
+    const avgCost =
+        Number(
+            position.avg_cost
+            || 0
+        );
+
+    const latest =
+        Number(
+            stock.price?.close
+            || 0
+        );
 
     if (
-        normalized === "READY"
+        shares <= 0
         ||
-        normalized === "SUCCESS"
+        avgCost <= 0
         ||
-        normalized === "STORED"
+        latest <= 0
     ) {
 
         return `
-            <span class="badge badge-ready">
-                ${escapeHtml(
-                    normalized
-                )}
-            </span>
+
+            <div class="position-hint">
+                輸入平均成本與股數後，
+                即可查看未實現損益。
+            </div>
         `;
     }
 
+    const cost =
+        shares
+        *
+        avgCost;
+
+    const marketValue =
+        shares
+        *
+        latest;
+
+    const pnl =
+        marketValue
+        -
+        cost;
+
+    const returnPct =
+        cost
+        ?
+        (
+            pnl
+            /
+            cost
+            *
+            100
+        )
+        :
+        0;
+
     return `
-        <span class="badge badge-wait">
-            ${
-                escapeHtml(
-                    normalized
-                    || "WAIT"
+
+        <div class="position-summary">
+
+            ${keyValue(
+                "投入成本",
+                formatInteger(
+                    cost
                 )
-            }
-        </span>
+            )}
+
+            ${keyValue(
+                "目前市值",
+                formatInteger(
+                    marketValue
+                )
+            )}
+
+            ${keyValue(
+                "未實現損益",
+                formatInteger(
+                    pnl
+                )
+            )}
+
+            ${keyValue(
+                "報酬率",
+                formatPercent(
+                    returnPct
+                )
+            )}
+
+        </div>
     `;
 }
+
+
+// ============================================================
+// FORMAT
+// ============================================================
 
 
 function changeClass(
     value
 ) {
 
-    const number =
+    const numeric =
         Number(
             value
         );
 
     if (
         !Number.isFinite(
-            number
+            numeric
         )
         ||
-        number === 0
+        numeric === 0
     ) {
 
         return "neutral";
     }
 
     return (
-        number > 0
+        numeric > 0
         ?
         "positive"
         :
@@ -2157,21 +2307,21 @@ function formatNumber(
         return "--";
     }
 
-    const number =
+    const numeric =
         Number(
             value
         );
 
     if (
         !Number.isFinite(
-            number
+            numeric
         )
     ) {
 
         return "--";
     }
 
-    return number
+    return numeric
         .toLocaleString(
             "zh-TW",
             {
@@ -2200,14 +2350,14 @@ function formatInteger(
         return "--";
     }
 
-    const number =
+    const numeric =
         Number(
             value
         );
 
     if (
         !Number.isFinite(
-            number
+            numeric
         )
     ) {
 
@@ -2215,7 +2365,7 @@ function formatInteger(
     }
 
     return Math.round(
-        number
+        numeric
     )
     .toLocaleString(
         "zh-TW"
@@ -2238,14 +2388,14 @@ function formatPercent(
         return "--";
     }
 
-    const number =
+    const numeric =
         Number(
             value
         );
 
     if (
         !Number.isFinite(
-            number
+            numeric
         )
     ) {
 
@@ -2253,14 +2403,14 @@ function formatPercent(
     }
 
     const sign =
-        number > 0
+        numeric > 0
         ?
         "+"
         :
         "";
 
     return (
-        `${sign}${number.toFixed(2)}%`
+        `${sign}${numeric.toFixed(2)}%`
     );
 }
 
@@ -2280,14 +2430,14 @@ function formatPercentRaw(
         return "--";
     }
 
-    const number =
+    const numeric =
         Number(
             value
         );
 
     if (
         !Number.isFinite(
-            number
+            numeric
         )
     ) {
 
@@ -2295,7 +2445,37 @@ function formatPercentRaw(
     }
 
     return (
-        `${number.toFixed(2)}%`
+        `${numeric.toFixed(2)}%`
+    );
+}
+
+
+function priceRange(
+    low,
+    high
+) {
+
+    if (
+        low === null
+        ||
+        low === undefined
+        ||
+        high === null
+        ||
+        high === undefined
+    ) {
+
+        return "--";
+    }
+
+    return (
+        `${formatNumber(
+            low,
+            2
+        )} ~ ${formatNumber(
+            high,
+            2
+        )}`
     );
 }
 
