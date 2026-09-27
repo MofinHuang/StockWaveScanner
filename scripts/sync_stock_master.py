@@ -9,7 +9,6 @@ import subprocess
 import sys
 import time
 import urllib.request
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,13 +17,14 @@ from dotenv import load_dotenv
 
 
 # ============================================================
-# BASIC CONFIG
+# CONFIG
 # ============================================================
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_FILE = ROOT / ".env"
 
 TIMEOUT = 60
+
 HTTP_RETRY_DELAYS = (
     0,
     3,
@@ -35,27 +35,7 @@ SQL_ROWS_PER_STATEMENT = 100
 
 
 # ============================================================
-# OFFICIAL SOURCES
-# ============================================================
-#
-# Primary:
-#
-# TWSE:
-# https://mopsfin.twse.com.tw/opendata/t187ap03_L.csv
-#
-# TPEx:
-# https://mopsfin.twse.com.tw/opendata/t187ap03_O.csv
-#
-# TWSE OpenAPI is kept as fallback only.
-#
-# Reason:
-#
-# GitHub-hosted runners may occasionally receive a non-JSON
-# response from openapi.twse.com.tw.
-#
-# The official MOPS CSV source contains the same company master
-# dataset and is also the same source family already used for
-# TPEx.
+# OFFICIAL SOURCE
 # ============================================================
 
 TWSE_CSV_URL = (
@@ -74,11 +54,148 @@ TPEX_CSV_URL = (
 )
 
 USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/152.0.0.0 Safari/537.36 "
-    "StockWaveScanner-V2-Stock-Master/2.0"
+    "Mozilla/5.0 "
+    "StockWaveScanner-V3-Stock-Master/3.0"
 )
+
+
+# ============================================================
+# INDUSTRY
+# ============================================================
+
+TWSE_INDUSTRY_MAP = {
+
+    "01": "水泥工業",
+    "02": "食品工業",
+    "03": "塑膠工業",
+    "04": "紡織纖維",
+    "05": "電機機械",
+    "06": "電器電纜",
+
+    "08": "玻璃陶瓷",
+    "09": "造紙工業",
+
+    "10": "鋼鐵工業",
+    "11": "橡膠工業",
+    "12": "汽車工業",
+
+    "14": "建材營造",
+    "15": "航運業",
+    "16": "觀光餐旅",
+    "17": "金融保險",
+    "18": "貿易百貨",
+    "19": "綜合",
+
+    "20": "其他",
+    "21": "化學工業",
+    "22": "生技醫療業",
+    "23": "油電燃氣業",
+
+    "24": "半導體業",
+    "25": "電腦及週邊設備業",
+    "26": "光電業",
+    "27": "通信網路業",
+    "28": "電子零組件業",
+    "29": "電子通路業",
+    "30": "資訊服務業",
+    "31": "其他電子業",
+}
+
+
+TPEX_INDUSTRY_MAP = {
+
+    "02": "食品工業",
+    "03": "塑膠工業",
+    "04": "紡織纖維",
+    "05": "電機機械",
+    "06": "電器電纜",
+
+    "08": "玻璃陶瓷",
+
+    "10": "鋼鐵工業",
+    "11": "橡膠工業",
+
+    "14": "建材營造",
+    "15": "航運業",
+    "16": "觀光餐旅",
+    "17": "金融業",
+    "18": "貿易百貨",
+
+    "20": "其他",
+    "21": "化學工業",
+    "22": "生技醫療",
+    "23": "油電燃氣業",
+
+    "24": "半導體業",
+    "25": "電腦及週邊設備業",
+    "26": "光電業",
+    "27": "通信網路業",
+    "28": "電子零組件業",
+    "29": "電子通路業",
+    "30": "資訊服務業",
+    "31": "其他電子業",
+
+    "32": "文化創意業",
+    "33": "農業科技",
+    "34": "電子商務",
+    "35": "綠能環保",
+    "36": "數位雲端",
+    "37": "運動休閒",
+    "38": "居家生活",
+
+    "80": "管理股票",
+}
+
+
+def normalize_industry_code(
+    value: Any,
+) -> str | None:
+
+    text = clean_text(
+        value
+    )
+
+    if text is None:
+        return None
+
+    text = text.strip()
+
+    if text.isdigit():
+
+        return text.zfill(
+            2
+        )
+
+    return text
+
+
+def industry_name(
+    market: str,
+    code: str | None,
+) -> str | None:
+
+    if code is None:
+        return None
+
+    if market == "TWSE":
+
+        return (
+            TWSE_INDUSTRY_MAP
+            .get(
+                code
+            )
+        )
+
+    if market == "TPEX":
+
+        return (
+            TPEX_INDUSTRY_MAP
+            .get(
+                code
+            )
+        )
+
+    return None
 
 
 # ============================================================
@@ -87,30 +204,29 @@ USER_AGENT = (
 
 
 def configure_console() -> None:
-    """
-    Avoid Windows hosted-runner charmap errors when printing
-    Chinese company names.
-
-    Workflow also sets PYTHONUTF8/PYTHONIOENCODING, but the
-    script protects itself as well.
-    """
 
     for stream in (
         sys.stdout,
         sys.stderr,
     ):
+
         reconfigure = getattr(
             stream,
             "reconfigure",
             None,
         )
 
-        if callable(reconfigure):
+        if callable(
+            reconfigure
+        ):
+
             try:
+
                 reconfigure(
                     encoding="utf-8",
                     errors="replace",
                 )
+
             except Exception:
                 pass
 
@@ -120,7 +236,8 @@ def configure_console() -> None:
 # ============================================================
 
 
-def load_dev_credentials() -> tuple[str, str]:
+def load_dev_credentials(
+) -> tuple[str, str]:
 
     load_dotenv(
         ENV_FILE
@@ -143,15 +260,15 @@ def load_dev_credentials() -> tuple[str, str]:
     )
 
     if not url:
+
         raise RuntimeError(
-            "TURSO_DEV_DATABASE_URL "
-            "is missing from .env"
+            "TURSO_DEV_DATABASE_URL is missing from .env"
         )
 
     if not token:
+
         raise RuntimeError(
-            "TURSO_DEV_AUTH_TOKEN "
-            "is missing from .env"
+            "TURSO_DEV_AUTH_TOKEN is missing from .env"
         )
 
     lower_url = (
@@ -162,16 +279,17 @@ def load_dev_credentials() -> tuple[str, str]:
         "stockwave-dev"
         not in lower_url
     ):
+
         raise RuntimeError(
             "SAFETY STOP: "
-            "TURSO_DEV_DATABASE_URL "
-            "does not point to stockwave-dev"
+            "database is not stockwave-dev"
         )
 
     if (
         "stockwave-prod"
         in lower_url
     ):
+
         raise RuntimeError(
             "SAFETY STOP: "
             "PROD database detected"
@@ -203,17 +321,227 @@ def mask_url(
 
 
 # ============================================================
+# TEXT
+# ============================================================
+
+
+def clean_text(
+    value: Any,
+) -> str | None:
+
+    if value is None:
+        return None
+
+    text = (
+        str(
+            value
+        )
+        .strip()
+    )
+
+    if not text:
+        return None
+
+    return text
+
+
+def parse_integer(
+    value: Any,
+) -> int | None:
+
+    text = clean_text(
+        value
+    )
+
+    if text is None:
+        return None
+
+    text = (
+        text
+        .replace(
+            ",",
+            "",
+        )
+        .replace(
+            "，",
+            "",
+        )
+    )
+
+    if text in {
+        "-",
+        "--",
+        "N/A",
+        "NA",
+    }:
+        return None
+
+    try:
+
+        return int(
+            float(
+                text
+            )
+        )
+
+    except ValueError:
+        return None
+
+
+def normalize_date(
+    value: Any,
+) -> str | None:
+
+    text = clean_text(
+        value
+    )
+
+    if text is None:
+        return None
+
+    text = (
+        text
+        .replace(
+            ".",
+            "/",
+        )
+        .replace(
+            "-",
+            "/",
+        )
+    )
+
+    parts = (
+        text.split(
+            "/"
+        )
+    )
+
+    try:
+
+        if len(
+            parts
+        ) == 3:
+
+            year = int(
+                parts[0]
+            )
+
+            month = int(
+                parts[1]
+            )
+
+            day = int(
+                parts[2]
+            )
+
+            if year < 1911:
+
+                year += 1911
+
+            return (
+                f"{year:04d}-"
+                f"{month:02d}-"
+                f"{day:02d}"
+            )
+
+        digits = "".join(
+            ch
+            for ch in text
+            if ch.isdigit()
+        )
+
+        if len(
+            digits
+        ) == 8:
+
+            year = int(
+                digits[:4]
+            )
+
+            month = int(
+                digits[4:6]
+            )
+
+            day = int(
+                digits[6:8]
+            )
+
+            return (
+                f"{year:04d}-"
+                f"{month:02d}-"
+                f"{day:02d}"
+            )
+
+        if len(
+            digits
+        ) == 7:
+
+            year = (
+                int(
+                    digits[:3]
+                )
+                +
+                1911
+            )
+
+            month = int(
+                digits[3:5]
+            )
+
+            day = int(
+                digits[5:7]
+            )
+
+            return (
+                f"{year:04d}-"
+                f"{month:02d}-"
+                f"{day:02d}"
+            )
+
+    except ValueError:
+        return None
+
+    return None
+
+
+def first_value(
+    row: dict[str, Any],
+    candidates: tuple[str, ...],
+) -> Any:
+
+    for key in candidates:
+
+        if key not in row:
+            continue
+
+        value = row.get(
+            key
+        )
+
+        if clean_text(
+            value
+        ) is not None:
+
+            return value
+
+    return None
+
+
+# ============================================================
 # HTTP
 # ============================================================
 
 
-def curl_path() -> str | None:
+def curl_path(
+) -> str | None:
 
     return (
         shutil.which(
             "curl.exe"
         )
-        or shutil.which(
+        or
+        shutil.which(
             "curl"
         )
     )
@@ -249,6 +577,7 @@ def fetch_urllib(
         )
 
     if not data:
+
         raise RuntimeError(
             f"Empty response: {url}"
         )
@@ -260,11 +589,10 @@ def fetch_curl(
     url: str,
 ) -> bytes:
 
-    curl = (
-        curl_path()
-    )
+    curl = curl_path()
 
     if not curl:
+
         raise RuntimeError(
             "curl was not found"
         )
@@ -317,14 +645,13 @@ def fetch_curl(
         )
 
         raise RuntimeError(
-            f"curl failed: "
-            f"{error}"
+            f"curl failed: {error}"
         )
 
     if not result.stdout:
+
         raise RuntimeError(
-            f"Empty response: "
-            f"{url}"
+            f"Empty response: {url}"
         )
 
     return result.stdout
@@ -357,6 +684,7 @@ def fetch(
     ):
 
         if delay:
+
             time.sleep(
                 delay
             )
@@ -364,6 +692,7 @@ def fetch(
         for loader in loaders:
 
             try:
+
                 return loader(
                     url
                 )
@@ -397,11 +726,6 @@ def fetch(
     )
 
 
-# ============================================================
-# TEXT / RESPONSE
-# ============================================================
-
-
 def decode_text(
     data: bytes,
 ) -> str:
@@ -432,12 +756,9 @@ def validate_not_html(
     source: str,
 ) -> None:
 
-    stripped = (
-        text.lstrip()
-    )
-
     prefix = (
-        stripped[:200]
+        text
+        .lstrip()[:200]
         .lower()
     )
 
@@ -454,246 +775,19 @@ def validate_not_html(
     ):
 
         raise RuntimeError(
-            f"{source} returned HTML "
-            "instead of data"
+            f"{source} returned HTML instead of data"
         )
 
 
 # ============================================================
-# NORMALIZATION
+# NORMALIZE SOURCE
 # ============================================================
-
-
-def clean_text(
-    value: Any,
-) -> str | None:
-
-    if value is None:
-        return None
-
-    text = (
-        str(value)
-        .strip()
-    )
-
-    if not text:
-        return None
-
-    return text
-
-
-def parse_integer(
-    value: Any,
-) -> int | None:
-
-    text = (
-        clean_text(
-            value
-        )
-    )
-
-    if text is None:
-        return None
-
-    text = (
-        text
-        .replace(",", "")
-        .replace("，", "")
-    )
-
-    if text in {
-        "-",
-        "--",
-        "N/A",
-        "NA",
-    }:
-        return None
-
-    try:
-
-        return int(
-            float(
-                text
-            )
-        )
-
-    except ValueError:
-        return None
-
-
-def normalize_date(
-    value: Any,
-) -> str | None:
-
-    text = (
-        clean_text(
-            value
-        )
-    )
-
-    if text is None:
-        return None
-
-    text = (
-        text
-        .replace(".", "/")
-        .replace("-", "/")
-    )
-
-    parts = (
-        text.split("/")
-    )
-
-    try:
-
-        # ROC / Gregorian with separators
-        if len(parts) == 3:
-
-            year = int(
-                parts[0]
-            )
-
-            month = int(
-                parts[1]
-            )
-
-            day = int(
-                parts[2]
-            )
-
-            if year < 1911:
-                year += 1911
-
-            return (
-                f"{year:04d}-"
-                f"{month:02d}-"
-                f"{day:02d}"
-            )
-
-        digits = "".join(
-            ch
-            for ch in text
-            if ch.isdigit()
-        )
-
-        # Gregorian YYYYMMDD
-        if len(digits) == 8:
-
-            year = int(
-                digits[:4]
-            )
-
-            month = int(
-                digits[4:6]
-            )
-
-            day = int(
-                digits[6:8]
-            )
-
-            return (
-                f"{year:04d}-"
-                f"{month:02d}-"
-                f"{day:02d}"
-            )
-
-        # ROC YYYMMDD
-        if len(digits) == 7:
-
-            year = (
-                int(
-                    digits[:3]
-                )
-                + 1911
-            )
-
-            month = int(
-                digits[3:5]
-            )
-
-            day = int(
-                digits[5:7]
-            )
-
-            return (
-                f"{year:04d}-"
-                f"{month:02d}-"
-                f"{day:02d}"
-            )
-
-        # Older ROC YYMMDD
-        if len(digits) == 6:
-
-            year = (
-                int(
-                    digits[:2]
-                )
-                + 1911
-            )
-
-            month = int(
-                digits[2:4]
-            )
-
-            day = int(
-                digits[4:6]
-            )
-
-            return (
-                f"{year:04d}-"
-                f"{month:02d}-"
-                f"{day:02d}"
-            )
-
-    except ValueError:
-        return None
-
-    return None
-
-
-def first_value(
-    row: dict[
-        str,
-        Any,
-    ],
-    candidates: tuple[
-        str,
-        ...,
-    ],
-) -> Any:
-
-    for key in candidates:
-
-        if key not in row:
-            continue
-
-        value = (
-            row.get(
-                key
-            )
-        )
-
-        if (
-            clean_text(
-                value
-            )
-            is not None
-        ):
-            return value
-
-    return None
 
 
 def normalize_row(
-    row: dict[
-        str,
-        Any,
-    ],
+    row: dict[str, Any],
     market: str,
-) -> dict[
-    str,
-    Any,
-]:
+) -> dict[str, Any]:
 
     stock_id = clean_text(
         first_value(
@@ -727,15 +821,22 @@ def normalize_row(
         )
     )
 
-    industry_code = clean_text(
-        first_value(
-            row,
-            (
-                "產業別",
-                "產業類別",
-                "IndustryCode",
-            ),
+    industry_code = (
+        normalize_industry_code(
+            first_value(
+                row,
+                (
+                    "產業別",
+                    "產業類別",
+                    "IndustryCode",
+                ),
+            )
         )
+    )
+
+    industry = industry_name(
+        market,
+        industry_code,
     )
 
     if market == "TWSE":
@@ -779,19 +880,18 @@ def normalize_row(
     if not stock_id:
 
         raise RuntimeError(
-            f"{market}: "
-            "missing stock_id"
+            f"{market}: missing stock_id"
         )
 
     if not stock_name:
 
         raise RuntimeError(
-            f"{market} "
-            f"{stock_id}: "
+            f"{market} {stock_id}: "
             "missing stock_name"
         )
 
     return {
+
         "stock_id":
             stock_id,
 
@@ -811,7 +911,7 @@ def normalize_row(
             industry_code,
 
         "industry_name":
-            None,
+            industry,
 
         "listed_date":
             normalize_date(
@@ -844,17 +944,10 @@ def parse_csv_rows(
     market: str,
     source_name: str,
     minimum_rows: int,
-) -> list[
-    dict[
-        str,
-        Any,
-    ]
-]:
+) -> list[dict[str, Any]]:
 
-    text = (
-        decode_text(
-            raw
-        )
+    text = decode_text(
+        raw
     )
 
     validate_not_html(
@@ -872,7 +965,9 @@ def parse_csv_rows(
         reader
     )
 
-    if len(rows) < minimum_rows:
+    if len(
+        rows
+    ) < minimum_rows:
 
         raise RuntimeError(
             f"{source_name} "
@@ -880,7 +975,7 @@ def parse_csv_rows(
             f"{len(rows)}"
         )
 
-    result = [
+    return [
         normalize_row(
             row,
             market,
@@ -888,21 +983,14 @@ def parse_csv_rows(
         for row in rows
     ]
 
-    return result
-
 
 # ============================================================
-# TWSE LOAD
+# SOURCE LOAD
 # ============================================================
 
 
 def load_twse_from_csv(
-) -> list[
-    dict[
-        str,
-        Any,
-    ]
-]:
+) -> list[dict[str, Any]]:
 
     raw = fetch(
         TWSE_CSV_URL,
@@ -912,30 +1000,20 @@ def load_twse_from_csv(
     return parse_csv_rows(
         raw,
         market="TWSE",
-        source_name=(
-            "TWSE MOPS CSV"
-        ),
+        source_name="TWSE MOPS CSV",
         minimum_rows=500,
     )
 
 
 def load_twse_from_openapi(
-) -> list[
-    dict[
-        str,
-        Any,
-    ]
-]:
+) -> list[dict[str, Any]]:
 
     raw = fetch(
-        TWSE_OPENAPI_URL,
-        prefer_curl=False,
+        TWSE_OPENAPI_URL
     )
 
-    text = (
-        decode_text(
-            raw
-        )
+    text = decode_text(
+        raw
     )
 
     validate_not_html(
@@ -943,32 +1021,9 @@ def load_twse_from_openapi(
         "TWSE OpenAPI",
     )
 
-    try:
-
-        payload = json.loads(
-            text
-        )
-
-    except json.JSONDecodeError as exc:
-
-        prefix = (
-            text[:120]
-            .replace(
-                "\r",
-                " ",
-            )
-            .replace(
-                "\n",
-                " ",
-            )
-        )
-
-        raise RuntimeError(
-            "TWSE OpenAPI invalid JSON: "
-            f"{exc}; "
-            f"response-prefix="
-            f"{prefix!r}"
-        ) from exc
+    payload = json.loads(
+        text
+    )
 
     if not isinstance(
         payload,
@@ -976,16 +1031,15 @@ def load_twse_from_openapi(
     ):
 
         raise RuntimeError(
-            "TWSE OpenAPI response "
-            "is not a JSON array"
+            "TWSE OpenAPI response is not array"
         )
 
-    if len(payload) < 500:
+    if len(
+        payload
+    ) < 500:
 
         raise RuntimeError(
-            "TWSE OpenAPI "
-            "record count too small: "
-            f"{len(payload)}"
+            "TWSE OpenAPI record count too small"
         )
 
     return [
@@ -999,68 +1053,36 @@ def load_twse_from_openapi(
 
 def load_twse(
 ) -> tuple[
-    list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
+    list[dict[str, Any]],
     str,
 ]:
 
-    # Primary:
-    # Official MOPS CSV
-
     try:
 
-        rows = (
-            load_twse_from_csv()
-        )
-
         return (
-            rows,
+            load_twse_from_csv(),
             "TWSE_MOPS_CSV",
         )
 
     except Exception as exc:
 
         print(
-            "    [WARN] "
-            "TWSE MOPS CSV failed: "
-            f"{exc}"
+            f"[WARN] TWSE CSV failed: {exc}"
         )
 
         print(
-            "    Falling back to "
-            "TWSE OpenAPI ..."
+            "Falling back to TWSE OpenAPI ..."
         )
 
-    # Fallback:
-    # Official TWSE OpenAPI
-
-    rows = (
-        load_twse_from_openapi()
-    )
-
     return (
-        rows,
+        load_twse_from_openapi(),
         "TWSE_OPENAPI",
     )
 
 
-# ============================================================
-# TPEX LOAD
-# ============================================================
-
-
 def load_tpex(
 ) -> tuple[
-    list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
+    list[dict[str, Any]],
     str,
 ]:
 
@@ -1072,9 +1094,7 @@ def load_tpex(
     rows = parse_csv_rows(
         raw,
         market="TPEX",
-        source_name=(
-            "TPEx MOPS CSV"
-        ),
+        source_name="TPEx MOPS CSV",
         minimum_rows=300,
     )
 
@@ -1090,52 +1110,38 @@ def load_tpex(
 
 
 def validate_source_rows(
-    twse_rows: list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
-    tpex_rows: list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
+    twse_rows: list[dict[str, Any]],
+    tpex_rows: list[dict[str, Any]],
 ) -> None:
 
     twse_ids = {
-        row[
-            "stock_id"
-        ]
+        row["stock_id"]
         for row in twse_rows
     }
 
     tpex_ids = {
-        row[
-            "stock_id"
-        ]
+        row["stock_id"]
         for row in tpex_rows
     }
 
-    if (
-        len(twse_ids)
-        != len(twse_rows)
+    if len(
+        twse_ids
+    ) != len(
+        twse_rows
     ):
 
         raise RuntimeError(
-            "TWSE contains "
-            "duplicate stock_id"
+            "TWSE contains duplicate stock_id"
         )
 
-    if (
-        len(tpex_ids)
-        != len(tpex_rows)
+    if len(
+        tpex_ids
+    ) != len(
+        tpex_rows
     ):
 
         raise RuntimeError(
-            "TPEx contains "
-            "duplicate stock_id"
+            "TPEx contains duplicate stock_id"
         )
 
     overlap = (
@@ -1146,62 +1152,61 @@ def validate_source_rows(
 
     if overlap:
 
-        sample = ", ".join(
-            sorted(
-                overlap
-            )[:10]
-        )
-
         raise RuntimeError(
-            "Same stock_id exists "
-            "in both TWSE and TPEx: "
-            f"{sample}"
+            "Same stock_id exists in TWSE and TPEx: "
+            +
+            ", ".join(
+                sorted(
+                    overlap
+                )[:10]
+            )
         )
 
-    all_rows = (
-        twse_rows
-        +
-        tpex_rows
-    )
+    missing_industry_name = [
 
-    invalid_ids = [
-        row[
-            "stock_id"
-        ]
+        row
 
-        for row
-        in all_rows
+        for row in (
+            twse_rows
+            +
+            tpex_rows
+        )
 
-        if not row[
-            "stock_id"
-        ]
+        if (
+            row.get(
+                "industry_code"
+            )
+            and
+            not row.get(
+                "industry_name"
+            )
+        )
     ]
 
-    if invalid_ids:
+    if missing_industry_name:
 
-        raise RuntimeError(
-            "Invalid stock_id detected"
+        print()
+
+        print(
+            "[WARN] Unknown industry codes:"
         )
 
-    missing_names = [
-        row[
-            "stock_id"
-        ]
+        unknown = sorted(
+            {
+                (
+                    row["market"],
+                    row["industry_code"],
+                )
 
-        for row
-        in all_rows
-
-        if not row[
-            "stock_name"
-        ]
-    ]
-
-    if missing_names:
-
-        raise RuntimeError(
-            "Source rows contain "
-            "missing stock_name"
+                for row in missing_industry_name
+            }
         )
+
+        for market, code in unknown:
+
+            print(
+                f"  {market} {code}"
+            )
 
 
 # ============================================================
@@ -1216,16 +1221,12 @@ INSERT INTO stock_master (
     short_name,
     market,
     security_type,
-
     industry_code,
     industry_name,
-
     listed_date,
     issued_common_shares,
     source_date,
-
     is_active,
-
     created_at,
     updated_at
 )
@@ -1285,59 +1286,32 @@ DO UPDATE SET
 
 
 def row_tuple(
-    row: dict[
-        str,
-        Any,
-    ],
-) -> tuple[
-    Any,
-    ...,
-]:
+    row: dict[str, Any],
+) -> tuple[Any, ...]:
 
     return (
-        row[
-            "stock_id"
-        ],
 
-        row[
-            "stock_name"
-        ],
+        row["stock_id"],
 
-        row[
-            "short_name"
-        ],
+        row["stock_name"],
 
-        row[
-            "market"
-        ],
+        row["short_name"],
 
-        row[
-            "security_type"
-        ],
+        row["market"],
 
-        row[
-            "industry_code"
-        ],
+        row["security_type"],
 
-        row[
-            "industry_name"
-        ],
+        row["industry_code"],
 
-        row[
-            "listed_date"
-        ],
+        row["industry_name"],
 
-        row[
-            "issued_common_shares"
-        ],
+        row["listed_date"],
 
-        row[
-            "source_date"
-        ],
+        row["issued_common_shares"],
 
-        row[
-            "is_active"
-        ],
+        row["source_date"],
+
+        row["is_active"],
     )
 
 
@@ -1365,16 +1339,8 @@ def build_upsert_sql(
 
 
 def flatten_rows(
-    rows: list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
-) -> tuple[
-    Any,
-    ...,
-]:
+    rows: list[dict[str, Any]],
+) -> tuple[Any, ...]:
 
     values: list[Any] = []
 
@@ -1392,25 +1358,18 @@ def flatten_rows(
 
 
 def source_latest_date(
-    rows: list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
+    rows: list[dict[str, Any]],
 ) -> str | None:
 
     values = [
-        row[
-            "source_date"
-        ]
 
-        for row
-        in rows
+        row["source_date"]
 
-        if row[
+        for row in rows
+
+        if row.get(
             "source_date"
-        ]
+        )
     ]
 
     if not values:
@@ -1438,27 +1397,21 @@ def update_sync_state(
         INSERT INTO sync_state (
             dataset,
             last_data_date,
-
             last_success_at,
             last_attempt_at,
-
             status,
             records_processed,
             error_message,
-
             updated_at
         )
         VALUES (
             ?,
             ?,
-
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP,
-
             'SUCCESS',
             ?,
             NULL,
-
             CURRENT_TIMESTAMP
         )
 
@@ -1501,18 +1454,8 @@ def update_sync_state(
 
 def sync_database(
     conn,
-    twse_rows: list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
-    tpex_rows: list[
-        dict[
-            str,
-            Any,
-        ]
-    ],
+    twse_rows: list[dict[str, Any]],
+    tpex_rows: list[dict[str, Any]],
 ) -> None:
 
     all_rows = (
@@ -1526,15 +1469,6 @@ def sync_database(
     )
 
     try:
-
-        # ====================================================
-        # Current snapshot strategy
-        #
-        # 1. Existing TWSE / TPEx rows -> inactive
-        # 2. Current official rows -> upsert active
-        #
-        # Historical delisted stocks stay in stock_master.
-        # ====================================================
 
         conn.execute(
             """
@@ -1550,25 +1484,19 @@ def sync_database(
             """
         )
 
-        # ====================================================
-        # Batch UPSERT
-        #
-        # Previous executemany against remote Turso could take
-        # several minutes because of many remote statements.
-        #
-        # Multi-row UPSERT greatly reduces round trips.
-        # ====================================================
-
         for start in range(
             0,
-            len(all_rows),
+            len(
+                all_rows
+            ),
             SQL_ROWS_PER_STATEMENT,
         ):
 
             batch = all_rows[
                 start:
                 start
-                + SQL_ROWS_PER_STATEMENT
+                +
+                SQL_ROWS_PER_STATEMENT
             ]
 
             conn.execute(
@@ -1618,17 +1546,14 @@ def sync_database(
 
 
 # ============================================================
-# DB HELPERS
+# VERIFY
 # ============================================================
 
 
 def scalar(
     conn,
     sql: str,
-    params: tuple[
-        Any,
-        ...,
-    ] = (),
+    params: tuple[Any, ...] = (),
 ) -> Any:
 
     row = (
@@ -1645,30 +1570,11 @@ def scalar(
     return row[0]
 
 
-# ============================================================
-# DB VERIFICATION
-# ============================================================
-
-
 def verify_database(
     conn,
     expected_twse: int,
     expected_tpex: int,
 ) -> None:
-
-    print()
-
-    print(
-        "=" * 70
-    )
-
-    print(
-        "DATABASE VERIFICATION"
-    )
-
-    print(
-        "=" * 70
-    )
 
     active_twse = int(
         scalar(
@@ -1700,171 +1606,101 @@ def verify_database(
         or 0
     )
 
-    total_active = int(
-        scalar(
-            conn,
-            """
-            SELECT COUNT(*)
-
-            FROM stock_master
-
-            WHERE is_active = 1
-            """,
-        )
-        or 0
-    )
-
-    duplicate_count = int(
-        scalar(
-            conn,
-            """
-            SELECT COUNT(*)
-
-            FROM (
-                SELECT stock_id
-
-                FROM stock_master
-
-                GROUP BY stock_id
-
-                HAVING COUNT(*) > 1
-            )
-            """,
-        )
-        or 0
-    )
-
-    null_name_count = int(
-        scalar(
-            conn,
-            """
-            SELECT COUNT(*)
-
-            FROM stock_master
-
-            WHERE is_active = 1
-
-              AND (
-                    stock_name IS NULL
-
-                    OR
-
-                    TRIM(stock_name) = ''
-                  )
-            """,
-        )
-        or 0
-    )
-
-    print(
-        f"TWSE Active     : "
-        f"{active_twse:,}"
-    )
-
-    print(
-        f"TPEx Active     : "
-        f"{active_tpex:,}"
-    )
-
-    print(
-        f"Total Active    : "
-        f"{total_active:,}"
-    )
-
-    print(
-        f"Duplicate IDs   : "
-        f"{duplicate_count:,}"
-    )
-
-    print(
-        f"Missing Names   : "
-        f"{null_name_count:,}"
-    )
-
-    if (
+    total_active = (
         active_twse
-        != expected_twse
-    ):
-
-        raise RuntimeError(
-            "TWSE DB count mismatch: "
-            f"{active_twse} "
-            f"!= {expected_twse}"
-        )
-
-    if (
+        +
         active_tpex
-        != expected_tpex
-    ):
+    )
 
-        raise RuntimeError(
-            "TPEx DB count mismatch: "
-            f"{active_tpex} "
-            f"!= {expected_tpex}"
-        )
-
-    if (
-        total_active
-        !=
-        (
-            expected_twse
-            +
-            expected_tpex
-        )
-    ):
-
-        raise RuntimeError(
-            "Total active "
-            "count mismatch"
-        )
-
-    if duplicate_count != 0:
-
-        raise RuntimeError(
-            "Duplicate stock_id detected"
-        )
-
-    if null_name_count != 0:
-
-        raise RuntimeError(
-            "Missing stock_name detected"
-        )
-
-    sync_rows = (
-        conn.execute(
+    industry_code_count = int(
+        scalar(
+            conn,
             """
-            SELECT
-                dataset,
-                last_data_date,
-                status,
-                records_processed
+            SELECT COUNT(*)
 
-            FROM sync_state
+            FROM stock_master
 
-            WHERE dataset IN (
-                'stock_master_twse',
-                'stock_master_tpex'
-            )
-
-            ORDER BY dataset
-            """
+            WHERE is_active = 1
+              AND industry_code IS NOT NULL
+              AND TRIM(industry_code) <> ''
+            """,
         )
-        .fetchall()
+        or 0
+    )
+
+    industry_name_count = int(
+        scalar(
+            conn,
+            """
+            SELECT COUNT(*)
+
+            FROM stock_master
+
+            WHERE is_active = 1
+              AND industry_name IS NOT NULL
+              AND TRIM(industry_name) <> ''
+            """,
+        )
+        or 0
     )
 
     print()
 
     print(
-        "Sync State:"
+        "=" * 70
     )
 
-    for row in sync_rows:
+    print(
+        "DATABASE VERIFICATION"
+    )
 
-        print(
-            f"  {row[0]:<20} "
-            f"| date={row[1]} "
-            f"| status={row[2]} "
-            f"| rows={row[3]}"
+    print(
+        "=" * 70
+    )
+
+    print(
+        f"TWSE Active       : "
+        f"{active_twse:,}"
+    )
+
+    print(
+        f"TPEx Active       : "
+        f"{active_tpex:,}"
+    )
+
+    print(
+        f"Total Active      : "
+        f"{total_active:,}"
+    )
+
+    print(
+        f"Industry Code     : "
+        f"{industry_code_count:,}"
+    )
+
+    print(
+        f"Industry Name     : "
+        f"{industry_name_count:,}"
+    )
+
+    if (
+        active_twse
+        !=
+        expected_twse
+    ):
+
+        raise RuntimeError(
+            "TWSE DB count mismatch"
+        )
+
+    if (
+        active_tpex
+        !=
+        expected_tpex
+    ):
+
+        raise RuntimeError(
+            "TPEx DB count mismatch"
         )
 
     samples = (
@@ -1875,7 +1711,7 @@ def verify_database(
                 short_name,
                 market,
                 industry_code,
-                listed_date
+                industry_name
 
             FROM stock_master
 
@@ -1883,7 +1719,7 @@ def verify_database(
 
             ORDER BY stock_id
 
-            LIMIT 5
+            LIMIT 20
             """
         )
         .fetchall()
@@ -1901,8 +1737,8 @@ def verify_database(
             f"  {row[0]} "
             f"{row[1]} "
             f"| {row[2]} "
-            f"| industry={row[3]} "
-            f"| listed={row[4]}"
+            f"| {row[3]} "
+            f"| {row[4]}"
         )
 
 
@@ -1920,8 +1756,8 @@ def main() -> int:
     )
 
     print(
-        "StockWaveScanner V2 - "
-        "Stock Master Sync to Turso DEV"
+        "StockWaveScanner V3 - "
+        "Stock Master Sync"
     )
 
     print(
@@ -1952,36 +1788,33 @@ def main() -> int:
         print()
 
         print(
-            "Downloading official "
-            "Stock Master ..."
+            "Downloading Stock Master ..."
         )
 
         started = (
             time.perf_counter()
         )
 
-        twse_rows, twse_source = (
-            load_twse()
-        )
+        (
+            twse_rows,
+            twse_source,
+        ) = load_twse()
 
         print(
             f"[PASS] TWSE "
-            f"records="
-            f"{len(twse_rows):,} "
-            f"| source="
-            f"{twse_source}"
+            f"records={len(twse_rows):,} "
+            f"| source={twse_source}"
         )
 
-        tpex_rows, tpex_source = (
-            load_tpex()
-        )
+        (
+            tpex_rows,
+            tpex_source,
+        ) = load_tpex()
 
         print(
             f"[PASS] TPEx "
-            f"records="
-            f"{len(tpex_rows):,} "
-            f"| source="
-            f"{tpex_source}"
+            f"records={len(tpex_rows):,} "
+            f"| source={tpex_source}"
         )
 
         validate_source_rows(
@@ -1989,26 +1822,14 @@ def main() -> int:
             tpex_rows,
         )
 
-        download_elapsed = (
-            time.perf_counter()
-            -
-            started
-        )
-
         print(
             "[PASS] Source validation"
-        )
-
-        print(
-            f"Source Elapsed : "
-            f"{download_elapsed:.1f}s"
         )
 
         print()
 
         print(
-            "Connecting to "
-            "Turso DEV ..."
+            "Connecting to Turso DEV ..."
         )
 
         conn = libsql.connect(
@@ -2032,24 +1853,17 @@ def main() -> int:
             ):
 
                 raise RuntimeError(
-                    "Turso DEV connection "
-                    "validation failed"
+                    "Turso DEV connection failed"
                 )
 
             print(
-                "[PASS] "
-                "Turso DEV connection"
+                "[PASS] Turso DEV connection"
             )
 
             print()
 
             print(
-                "Synchronizing "
-                "Stock Master ..."
-            )
-
-            sync_started = (
-                time.perf_counter()
+                "Synchronizing Stock Master ..."
             )
 
             sync_database(
@@ -2058,33 +1872,17 @@ def main() -> int:
                 tpex_rows,
             )
 
-            sync_elapsed = (
-                time.perf_counter()
-                -
-                sync_started
-            )
-
             print(
-                "[PASS] "
-                "Stock Master synchronized"
-            )
-
-            print(
-                f"DB Sync Elapsed : "
-                f"{sync_elapsed:.1f}s"
+                "[PASS] Stock Master synchronized"
             )
 
             verify_database(
                 conn,
-                expected_twse=(
-                    len(
-                        twse_rows
-                    )
+                expected_twse=len(
+                    twse_rows
                 ),
-                expected_tpex=(
-                    len(
-                        tpex_rows
-                    )
+                expected_tpex=len(
+                    tpex_rows
                 ),
             )
 
@@ -2092,7 +1890,7 @@ def main() -> int:
 
             conn.close()
 
-        total_elapsed = (
+        elapsed = (
             time.perf_counter()
             -
             started
@@ -2112,21 +1910,12 @@ def main() -> int:
             "=" * 70
         )
 
-        print()
-
         print(
-            "Official Stock Master "
-            "is stored in stockwave-dev."
+            f"Elapsed     : {elapsed:.1f}s"
         )
 
         print(
-            f"Total Elapsed : "
-            f"{total_elapsed:.1f}s"
-        )
-
-        print(
-            "No PROD database "
-            "was accessed."
+            "PROD Access : DISABLED"
         )
 
         return 0
@@ -2137,11 +1926,6 @@ def main() -> int:
 
         print(
             "INTERRUPTED"
-        )
-
-        print(
-            "No PROD database "
-            "was accessed."
         )
 
         return 130
@@ -2171,8 +1955,7 @@ def main() -> int:
         print()
 
         print(
-            "No PROD database "
-            "was accessed."
+            "No PROD database was accessed."
         )
 
         return 1
