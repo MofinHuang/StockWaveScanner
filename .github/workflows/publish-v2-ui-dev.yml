@@ -10,6 +10,7 @@ on:
     # UTC every day 08:30
     - cron: "30 8 * * *"
 
+
   push:
 
     branches:
@@ -20,6 +21,7 @@ on:
       - "scripts/export_v2_ui_snapshot.py"
       - "scripts/build_v2_scores.py"
       - "scripts/build_v3_ui_snapshot.py"
+      - "scripts/export_v3_sectors.py"
       - ".github/workflows/publish-v2-ui-dev.yml"
 
 
@@ -42,6 +44,7 @@ jobs:
 
     runs-on: windows-latest
 
+
     env:
 
       PYTHONUNBUFFERED: "1"
@@ -59,9 +62,17 @@ jobs:
 
     steps:
 
+      # ======================================================
+      # Checkout
+      # ======================================================
+
       - name: Checkout
         uses: actions/checkout@v7
 
+
+      # ======================================================
+      # Python
+      # ======================================================
 
       - name: Setup Python
         uses: actions/setup-python@v7
@@ -76,6 +87,10 @@ jobs:
             requirements-daily.txt
 
 
+      # ======================================================
+      # Dependencies
+      # ======================================================
+
       - name: Install dependencies
         shell: bash
 
@@ -86,6 +101,10 @@ jobs:
           python -m pip install \
             -r requirements-daily.txt
 
+
+      # ======================================================
+      # DEV SAFETY
+      # ======================================================
 
       - name: Validate DEV secrets
         shell: bash
@@ -142,6 +161,10 @@ jobs:
           echo "[PASS] DEV database safety check"
 
 
+      # ======================================================
+      # Syntax
+      # ======================================================
+
       - name: Validate V3 UI scripts
         shell: bash
 
@@ -150,12 +173,17 @@ jobs:
           python -m py_compile \
             scripts/export_v2_ui_snapshot.py \
             scripts/build_v2_scores.py \
+            scripts/export_v3_sectors.py \
             scripts/build_v3_ui_snapshot.py
 
           echo "[PASS] V3 UI scripts syntax validation"
 
 
-      - name: Export V2 base snapshot
+      # ======================================================
+      # BASE SNAPSHOT
+      # ======================================================
+
+      - name: Export V2 Base Snapshot
         shell: bash
 
         run: |
@@ -164,7 +192,11 @@ jobs:
             scripts/export_v2_ui_snapshot.py
 
 
-      - name: Build V2 scores
+      # ======================================================
+      # V3 STOCK SCORE
+      # ======================================================
+
+      - name: Build V2 Score Engine
         shell: bash
 
         run: |
@@ -173,7 +205,24 @@ jobs:
             scripts/build_v2_scores.py
 
 
-      - name: Build V3 UI snapshot
+      # ======================================================
+      # V3 SECTOR DOMAIN
+      # ======================================================
+
+      - name: Export V3 Sector Domain
+        shell: bash
+
+        run: |
+
+          python \
+            scripts/export_v3_sectors.py
+
+
+      # ======================================================
+      # V3 UI
+      # ======================================================
+
+      - name: Build V3 UI Snapshot
         shell: bash
 
         run: |
@@ -182,7 +231,11 @@ jobs:
             scripts/build_v3_ui_snapshot.py
 
 
-      - name: Validate generated V3 UI
+      # ======================================================
+      # Validation
+      # ======================================================
+
+      - name: Validate generated V3 data
         shell: bash
 
         run: |
@@ -195,7 +248,19 @@ jobs:
 
           fi
 
-          echo "[PASS] v3_ui.json generated"
+
+          if [ ! -f "docs/data/latest/sectors.json" ]; then
+
+            echo "ERROR: docs/data/latest/sectors.json was not generated"
+
+            exit 1
+
+          fi
+
+
+          echo "[PASS] v3_ui.json"
+
+          echo "[PASS] sectors.json"
 
 
       - name: Show generated files
@@ -208,6 +273,10 @@ jobs:
           ls -lah \
             docs/data/latest
 
+
+      # ======================================================
+      # Artifact
+      # ======================================================
 
       - name: Upload generated site
         uses: actions/upload-artifact@v4
@@ -227,6 +296,10 @@ jobs:
             1
 
 
+  # ==========================================================
+  # GitHub Pages
+  # ==========================================================
+
   deploy-pages:
 
     name: Deploy GitHub Pages
@@ -236,6 +309,7 @@ jobs:
 
     runs-on:
       ubuntu-latest
+
 
     permissions:
 

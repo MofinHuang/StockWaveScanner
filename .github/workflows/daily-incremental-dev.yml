@@ -1,8 +1,8 @@
-name: StockWaveScanner V2 Daily Incremental DEV
+name: StockWaveScanner V3 Daily Incremental DEV
 
 on:
   schedule:
-    # Taiwan 16:00 = UTC 8:00
+    # Taiwan 16:00 = UTC 08:00
     # Monday ~ Friday
     - cron: "0 8 * * 1-5"
 
@@ -30,17 +30,14 @@ concurrency:
 
 
 jobs:
+
   daily-incremental:
 
     name: Daily Incremental DEV
 
-    # TPEx official endpoints currently work reliably
-    # through the Windows TLS / Schannel environment.
-    #
-    # Do NOT disable TLS certificate verification.
     runs-on: windows-latest
 
-    timeout-minutes: 30
+    timeout-minutes: 40
 
 
     defaults:
@@ -49,14 +46,6 @@ jobs:
 
 
     env:
-
-      # ======================================================
-      # Python UTF-8
-      #
-      # Windows GitHub Runner console may otherwise use a
-      # legacy code page and fail when printing Chinese names
-      # such as 台泥 / 亞泥.
-      # ======================================================
 
       PYTHONUNBUFFERED: "1"
       PYTHONUTF8: "1"
@@ -82,6 +71,7 @@ jobs:
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v7
+
         with:
           python-version: "3.13"
           cache: "pip"
@@ -89,16 +79,19 @@ jobs:
 
 
       # ======================================================
-      # Runtime Information
+      # Runtime
       # ======================================================
 
       - name: Show runtime information
         run: |
+
           python --version
 
           python -c "import sys; print('Python executable:', sys.executable)"
+
           python -c "import sys; print('stdout encoding:', sys.stdout.encoding)"
-          python -c "print('UTF-8 test: 台泥 / 亞泥 / 上櫃')"
+
+          python -c "print('UTF-8 test: 台泥 / 亞泥 / 上櫃 / 族群')"
 
           pip --version
 
@@ -108,37 +101,58 @@ jobs:
 
 
       # ======================================================
-      # DEV Secret Preflight
+      # DEV SAFETY
       # ======================================================
 
       - name: Validate DEV secrets
         run: |
 
           if [ -z "$TURSO_DEV_DATABASE_URL" ]; then
+
             echo "::error::Missing GitHub Secret: TURSO_DEV_DATABASE_URL"
+
             exit 1
+
           fi
+
 
           if [ -z "$TURSO_DEV_AUTH_TOKEN" ]; then
+
             echo "::error::Missing GitHub Secret: TURSO_DEV_AUTH_TOKEN"
+
             exit 1
+
           fi
 
-          case "$TURSO_DEV_DATABASE_URL" in
-            *stockwave-dev*)
-              ;;
-            *)
-              echo "::error::TURSO_DEV_DATABASE_URL does not point to stockwave-dev"
-              exit 1
-              ;;
-          esac
 
           case "$TURSO_DEV_DATABASE_URL" in
-            *stockwave-prod*)
-              echo "::error::PROD database detected. Workflow aborted."
-              exit 1
+
+            *stockwave-dev*)
               ;;
+
+            *)
+
+              echo "::error::TURSO_DEV_DATABASE_URL does not point to stockwave-dev"
+
+              exit 1
+
+              ;;
+
           esac
+
+
+          case "$TURSO_DEV_DATABASE_URL" in
+
+            *stockwave-prod*)
+
+              echo "::error::PROD database detected. Workflow aborted."
+
+              exit 1
+
+              ;;
+
+          esac
+
 
           echo "[PASS] DEV secrets configured"
           echo "[PASS] PROD protection"
@@ -150,43 +164,46 @@ jobs:
 
       - name: Install Python dependencies
         run: |
+
           python -m pip install --upgrade pip
+
           python -m pip install -r requirements-daily.txt
 
 
-      # ======================================================
-      # Dependency Smoke Test
-      # ======================================================
-
       - name: Validate Python dependencies
         run: |
+
           python -c "import libsql; import dotenv; print('[PASS] libsql import'); print('[PASS] python-dotenv import')"
 
 
       # ======================================================
-      # Syntax Validation
+      # Syntax
       # ======================================================
 
       - name: Validate Daily Pipeline scripts
         run: |
+
           python -m py_compile \
             scripts/sync_stock_master.py \
             scripts/sync_market_index_incremental.py \
             scripts/sync_daily_price_incremental.py \
             scripts/sync_institutional_incremental.py \
-            scripts/daily_incremental_pipeline.py
+            scripts/daily_incremental_pipeline.py \
+            scripts/sync_v3_industry_sector.py \
+            scripts/build_v3_sector_snapshot.py
 
           echo "[PASS] Daily Pipeline syntax validation"
 
 
       # ======================================================
-      # Daily Incremental Pipeline
+      # DAILY DATA
       # ======================================================
 
       - name: Run Daily Incremental Pipeline
         run: |
 
           THROUGH="${{ inputs.through }}"
+
           SKIP_STOCK_MASTER="${{ inputs.skip_stock_master }}"
 
           ARGS=()
@@ -227,6 +244,22 @@ jobs:
 
 
       # ======================================================
+      # V3 SECTOR
+      # ======================================================
+
+      - name: Sync V3 Official Industry Sectors
+        run: |
+
+          python scripts/sync_v3_industry_sector.py
+
+
+      - name: Build V3 Sector Daily Snapshot
+        run: |
+
+          python scripts/build_v3_sector_snapshot.py
+
+
+      # ======================================================
       # Success
       # ======================================================
 
@@ -235,7 +268,8 @@ jobs:
         run: |
 
           echo "========================================"
-          echo "StockWaveScanner V2"
+          echo "StockWaveScanner V3"
           echo "Daily Incremental DEV completed"
+          echo "Sector snapshot completed"
           echo "Runner: Windows"
           echo "========================================"
