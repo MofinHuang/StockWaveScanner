@@ -1,442 +1,725 @@
-# StockWaveScanner V2
+# StockWaveScanner V3
 
-台股研究與波段選股系統。
+StockWaveScanner 是一套針對台灣股票市場建立的研究型股票掃描系統。
 
-StockWaveScanner V2 以「資料先累積、UI 持續可用、評分依資料完整度自動啟用」為核心設計，整合每日行情、法人籌碼、TDCC 集保、月營收、季度財報與市場指數資料，並透過 GitHub Actions 自動更新資料與發布 GitHub Pages Research Dashboard。
+系統目標不是預測「哪一檔股票明天一定會漲」，而是每天從 TWSE 與 TPEx 股票中，找出：
 
-> 目前專案仍處於 V2 DEV 階段。  
-> 所有開發、資料回補與 UI Export 僅允許操作 Turso DEV。  
-> 禁止操作 PROD。
+- 值得優先研究的股票
+- 基本面、籌碼面、技術面表現較佳的股票
+- 目前價格位置較合理的股票
+- 接近可行動區域的股票
+- 風險可被量化與管理的股票
+
+核心理念：
+
+> **分數用來找股票，價格結構用來決定行動。**
 
 ---
 
-## V2 架構
+# V3 核心架構
+
+StockWaveScanner V3 將股票研究拆成兩個主要層次。
+
+## 1. 個股模型
+
+個股正式評分只包含：
 
 ```text
-Official Data Sources
-        │
-        ▼
-GitHub Actions
-        │
-        ├─ Daily Incremental
-        ├─ TDCC Weekly
-        ├─ Monthly Revenue
-        ├─ Quarterly Financial
-        └─ Historical Backfill
-        │
-        ▼
-Turso DEV
-stockwave-dev
-        │
-        ▼
-scripts/export_v2_ui_snapshot.py
-        │
-        ▼
-docs/data/latest/*.json
-        │
-        ▼
-scripts/build_v2_scores.py
-        │
-        ▼
-GitHub Pages
-StockWaveScanner V2 Research Dashboard
+基本面
++
+籌碼面
++
+技術面
+↓
+綜合評分
 
-前端不直接連線 Turso。
+目前 Research Weight：
+基本面 Fundamental   30%
+籌碼面 Chip          30%
+技術面 Technical     40%
 
-GitHub Actions 會先由 Turso DEV 匯出靜態 JSON Snapshot，再計算 V2 Score，最後發布至 GitHub Pages。
-
-V2 Dashboard
-
-GitHub Pages：
-
-https://mofinhuang.github.io/StockWaveScanner/
-
-目前主要功能：
-
-首頁市場狀態
-TAIEX / TPEX 市場指數
-資料完整度
-Sync State
-股票搜尋
-股票列表
-個股研究明細
-技術資料
-法人籌碼
-TDCC 集保資料
-月營收
-季財報
-Strength Score
-Timing Score
-Buy Priority
+權重目前仍屬 Research Model，未視為最終 Production 定值。
+2. 價格結構與交易階段
+高分股票不代表目前適合進場。
+StockWaveScanner 會再利用價格結構判斷：
+Buy Zone
+Breakout Price
+Risk Price
+Target Zone
 Stage
-TOP10
-自選股票
-持股成本
-未實現損益
-資料來源與狀態
-Stock Master
+Trade Plan
 
-主要來源：
+目前核心流程：
+Market Regime
+↓
+Fundamental / Chip / Technical
+↓
+Overall Score
+↓
+Price Structure
+↓
+Stage
+↓
+Trade Plan
+↓
+UI
 
-MOPS 官方資料
+V3 個股評分
+基本面 Fundamental
+用來回答：
+公司本身是否值得持續研究？
 
-目前涵蓋：
+主要觀察：
+- 月營收
+- YoY
+- MoM
+- EPS
+- 毛利率
+- 營業利益率
+- ROE
+- 獲利能力
+- 財務狀況
+主要資料來源：
+- MOPS
+- TWSE
+- TPEx
+籌碼面 Chip
+用來回答：
+市場資金是否正在支持這支股票？
 
-TWSE
-TPEx
-COMMON_STOCK
-Daily Price
+主要觀察：
+- 外資
+- 投信
+- 自營商
+- 三大法人
+- TDCC 集保
+- 大戶持股
+- 持股集中度
+- 融資
+- 融券
+- 籌碼連續性
+技術面 Technical V2
+Technical V2 不再單純追求「漲得越強分數越高」，而是更重視：
+- 趨勢結構
+- 價格位置
+- 動能品質
+主要指標：
+MA20
+MA60
+ATR
+5D Return
+10D Return
+20D Return
+Volume Ratio
+Breakout Structure
+Price Position
 
-每日 Incremental 已完成並由 GitHub Actions 執行。
+Technical V2 Research Weight：
+Trend Structure      35%
+Price Position       40%
+Momentum Quality     25%
 
-Historical Price 已完成回補：
+Technical V1 已經過 Backtest 後淘汰，目前 V3 使用 Technical V2。
+Overall Score
+目前 Overall V2：
+Fundamental 30%
++
+Chip 30%
++
+Technical V2 40%
 
-2024-09-02 ~ 2026-09-11
+Overall Score 回答的是：
+哪些股票值得優先研究？
 
-Historical Price 不需要重新完整 Backfill。
+它不直接代表：
+現在適合買進。
 
-Institutional
+是否適合行動，仍需看 Stage 與 Trade Plan。
+Stage V2
+目前 Stage 包含：
+AVOID
+WATCH
+SETUP
+READY
+BREAKOUT
+EXTENDED
+WAITING_DATA
 
-每日法人資料 Incremental 已完成。
+中文概念：
+Stage	說明
+AVOID	暫不關注
+WATCH	持續觀察
+SETUP	型態準備 / 蓄勢
+READY	接近合理進場位置
+BREAKOUT	突破確認
+EXTENDED	漲幅延伸
+WAITING_DATA	資料不足
 
-包含 TWSE / TPEx 法人買賣資料。
 
-Market Index
+Stage 的目的不是替股票貼標籤，而是把價格結構轉換成較容易理解的交易狀態。
+Trade Plan
+目前 Trade Plan 主要欄位：
+buy_zone_low
+buy_zone_high
 
-TAIEX / TPEX Market Index Incremental 已完成。
+distance_to_buy_zone_pct
 
-市場歷史資料會持續累積。
+breakout_price
+breakout_distance_pct
 
-歷史資料不足時：
+risk_price
+current_risk_pct
 
-WAITING_HISTORY
+target_low
+target_high
 
-不會將缺少的歷史資料視為 0。
+reward_risk_ratio
 
-TDCC
+目前 Research 計算方式：
+Buy Zone
+Low
+=
+MA20 - 0.25 ATR
 
-TDCC Weekly Incremental 已完成。
+High
+=
+MA20 + 0.50 ATR
 
-TWSE + TPEx COMMON_STOCK 目前已可取得最新集保資料。
+Risk Price
+Risk Price
+=
+Buy Zone Low - 1.50 ATR
 
-Workflow：
+Target Zone
+Target Low
+=
+Buy Zone High + 2 ATR
 
-.github/workflows/tdcc-weekly-dev.yml
-Monthly Revenue
+Target High
+=
+Buy Zone High + 3 ATR
 
-月營收 Incremental 已完成。
+Breakout Price
+使用：
+前 20 個交易日最高價
 
-Historical Backfill 已完成：
+不包含當日。
+目前 Trade Plan 仍屬 Research Model，後續會持續透過 Historical Backtest 驗證。
+Research Priority 與 Action Priority
+V3 將股票排序拆成兩種不同目的。
+Research Priority
+回答：
+哪些股票值得優先研究？
 
-2024-09 ~ 2026-08
+排序：
+Overall Score DESC
 
-歷史月營收不需要重新完整 Backfill。
+輸出：
+top10.json
 
-Quarterly Financial
+Action Priority
+回答：
+哪些股票目前價格位置比較接近可以行動？
 
-季度財報 Incremental 已完成。
+Stage 優先順序：
+BREAKOUT
+↓
+READY
+↓
+SETUP
 
-目前主要來源：
+同一 Stage：
+Overall Score DESC
 
-MOPS / MopsFin
+輸出：
+action_priority.json
 
-財報語意為：
+V3 市場觀察模型
+除了個股模型以外，V3 規劃加入三套外部觀察系統：
+族群資金
+分析師觀點
+ETF 持股異動
 
-累計季報
+另外建立：
+金控股觀察
 
-不是單季數值。
+重要原則：
+族群、ETF、分析師不直接影響個股 Fundamental / Chip / Technical Score。
 
-Historical Backfill 採由近至遠方式逐步補齊。
+它們屬於額外市場觀察資訊。
+族群資金
+族群頁主要回答：
+市場資金目前偏好哪些產業與題材？
 
-目前目標：
+預計觀察：
+當日
+當週
+當月
 
-2026-Q2
-2026-Q1
-2025-Q4
-2025-Q3
-2025-Q2
-2025-Q1
-2024-Q4
-2024-Q3
+法人
+大戶
+主力
+成交量
+族群廣度
+技術強度
 
-由 GitHub Actions 每日分 Slice 執行，不再由本機長時間完整回補。
-
-Quarterly Financial 特殊格式
-
-MOPS 財報並非所有公司都使用相同 Accounting Label 結構。
-
-一般產業可使用 GENERAL 財報結構，但銀行、保險、金控等公司可能採用不同格式。
-
-系統目前以 MopsFin 實際 Accounting Label 判斷。
-
-遇到非 GENERAL 財報：
-
-[SKIP] non-GENERAL report
-
-不會：
-
-強行套用 GENERAL 格式
-將不存在的財報欄位轉成 0
-因缺少財報而給股票低分
-Historical Backfill
-
-季度歷史財報採 Slice Queue 架構。
-
-主要程式：
-
-scripts/backfill_quarterly_financial_slice.py
-scripts/run_historical_backfill_queue.py
-
-Workflow：
-
-.github/workflows/historical-backfill-dev.yml
-
-基本策略：
-
-NEWEST -> OLDEST
-
-預設：
-
-lookback_quarters = 8
-slice_size = 100
-max_slices = 4
-
-每個 Slice 約處理 100 家公司。
-
-內部 Fetch Batch：
-
-10 stocks
-
-每完成一個 Batch 就直接寫入 Turso DEV，因此不需要等待整個市場完成才保存結果。
-
-進度記錄於：
-
-sync_state
+族群分類預計至少包含：
+INDUSTRY
+SUB_INDUSTRY
+THEME
 
 例如：
+半導體
+↓
+記憶體
+↓
+DRAM / HBM / AI 記憶體
 
-qfin_hist_2026_q2_twse
-qfin_hist_2026_q2_tpex
-qfin_hist_2026_q1_twse
+族群功能目前屬 V3 下一階段建置項目。
+分析師觀點
+分析師頁的目的不是建立「分析師推薦分數」。
+主要整理：
+分析師
+日期
+來源
+標題
+摘要
+涉及股票
+涉及族群
+主要分析面向
+關鍵因素
 
-狀態可能包含：
+預計觀察期間：
+當日
+近 3 日
+近 7 日
+近 30 日
 
-PARTIAL
-SUCCESS
+分析面向包含：
+基本面
+籌碼面
+技術面
+產業面
+總體面
+事件面
 
-records_processed 作為 Cursor，下一次排程會從尚未完成的位置繼續。
+目前指定研究對象：
+鐘崑禎
+王倚隆
+黎志建
+陳於晨
 
-V2 Score Engine
+分析師功能目前屬 V3 下一階段建置項目。
+ETF 持股異動
+ETF 頁主要不是看 ETF 資金流入流出。
+真正要回答：
+ETF 最近增加、減少、新進或剔除了哪些股票？
 
-Score Engine：
+目前規劃追蹤：
+0050
+0056
+00981A
+00878
+00919
+009816
 
-scripts/build_v2_scores.py
+統計期間：
+當日
+近 5 日
+近 20 日
 
-目前 V2 Provisional Score：
+狀態：
+新進
+持續加碼
+持平
+持續減碼
+剔除
 
-Strength
-Trend                  30%
-Relative Strength      20%
-Momentum + Volume      15%
-Chip                   20%
-Fundamental            15%
-Buy Priority
-Strength               65%
-Timing                 35%
-Data Readiness
+未來也會整理：
+ETF 共識加碼
+ETF 共識減碼
 
-StockWaveScanner V2 的核心原則：
+ETF 功能目前屬 V3 下一階段建置項目。
+金控股觀察
+金融股與一般電子股的評估邏輯不同，因此 V3 規劃建立獨立觀察頁。
+主要觀察：
+最新價
+5D Return
+20D Return
 
-Missing Data != Zero Score
+單月 EPS
+累計 EPS
+ROE
 
-缺資料不能被當成低分。
+現金股利
+殖利率
 
-當：
+法人動向
+主要獲利類型
+金融環境
 
-readiness.overall != READY
+金控類型：
+銀行型
+壽險型
+證券型
+綜合型
 
-則：
+不同類型未來會使用不同的觀察重點。
+金控股功能目前屬 V3 下一階段建置項目。
+V3 UI
+目前 V3 GitHub Pages 已完成第一版。
+主要導航：
+首頁
+排行
+市場
+我的
 
-Strength     = NULL
-Timing       = NULL
-Buy Priority = NULL
-Stage        = WAITING_DATA
+首頁
+目前顯示：
+- 今日市場環境
+- TAIEX
+- TPEX
+- V3 評分概況
+- Stage 分布
+- 今日優先觀察
+- 個股研究排行
+排行
+目前主要提供：
+- 個股研究排行
+- Overall Score
+- Fundamental
+- Chip
+- Technical
+- Stage
+- 最新價格
+- 漲跌幅
+- 個股搜尋
+- Stage 篩選
+市場
+目前已建立 V3 導覽骨架：
+族群資金
+分析師觀點
+ETF 持股異動
+金控股觀察
 
-該股票：
+各 Domain 資料與模型將逐步建置。
+我的
+分為：
+Watchlist
+Holdings
 
-不進入 TOP10
+Watchlist
+用來管理：
+- 正在觀察的股票
+- Overall
+- Fundamental
+- Chip
+- Technical
+- Stage
+Holdings
+目前可記錄：
+- 平均成本
+- 股數
+- 最新價格
+- 未實現損益
+- 報酬率
+- Stage
+未來將加入：
+Original Risk
+Trailing Risk
+Position Advice
 
-UI 顯示：
+個股明細
+個股明細不是主導航頁，而是所有股票入口共用的 Detail View。
+可由：
+首頁
+排行
+搜尋
+Watchlist
+Holdings
 
---
-WAITING_DATA
-資料補齊中
+點擊股票進入。
+目前主要內容：
+最新價格
 
-等資料完整後，Score Engine 才會自動開始評分。
+交易階段 Stage
 
-UI Snapshot
+綜合評分
+基本面
+籌碼面
+技術面
 
-Turso DEV 不直接暴露給 Browser。
+Technical V2
 
-UI 資料流程：
+Trade Plan
 
+買進參考區
+突破價
+風險價
+目標參考區
+風險報酬比
+
+Watchlist / Holdings
+
+資料架構
+V3 維持：
+外部資料來源
+↓
+GitHub Actions
+↓
+資料清洗 / 標準化
+↓
 Turso DEV
-    ↓
-scripts/export_v2_ui_snapshot.py
-    ↓
-docs/data/latest/*.json
-    ↓
-scripts/build_v2_scores.py
-    ↓
+↓
+Derived Metrics / Score Engine
+↓
+UI Snapshot Export
+↓
+JSON
+↓
 GitHub Pages
 
-docs/data/latest/ 為 GitHub Actions 動態產生資料，不 Commit 至 Repository。
+前端不直接連接 Turso。
+Turso
+Turso 主要負責：
+原始資料
+歷史資料
+跨日比較資料
+需要回溯的 Snapshot
+未來正式模型歷史結果
 
-V2 UI Workflow
-
-Workflow：
-
-.github/workflows/publish-v2-ui-dev.yml
-
-流程：
-
-Checkout
-    ↓
-Python
-    ↓
-Install requirements-daily.txt
-    ↓
-Validate DEV Secrets
-    ↓
-Export V2 UI Snapshot
-    ↓
-Build V2 Scores
-    ↓
-Upload Artifact
-    ↓
-Deploy GitHub Pages
-開發環境
-
-Local Repository：
-
-D:\002.Programs\002.Others\Python\StockWaveScanner
-
-Branch：
-
-main
-
-Windows 本機 Python 一律使用：
-
-.\.venv\Scripts\python.exe
-
-不要使用：
-
-python
-py -3.13
-Turso Environment
+目前環境：
 DEV
 stockwave-dev
-
-目前：
-
-Daily
-Backfill
-V2 UI
-Score Engine
-GitHub Actions
-
-全部僅允許操作 DEV。
 
 PROD
 stockwave-prod
 
-目前禁止操作。
+所有開發、測試與 Research：
+只操作 DEV。
 
-Secrets
+除非正式發布，否則不得操作 PROD。
+JSON
+JSON 負責：
+最新畫面快照
+模型結果
+繁體中文 UI 資料
+頁面摘要
 
-GitHub Actions 使用：
+概念：
+Turso
+=
+歷史真相
 
-TURSO_DEV_DATABASE_URL
-TURSO_DEV_AUTH_TOKEN
+JSON
+=
+最新畫面快照
 
-Repository 不保存 Token。
+目前正式前端：
+docs/data/latest/v3_ui.json
 
-以下檔案禁止 Commit：
+V3 Data Domain 規劃
+未來預計逐步拆分：
+docs/data/latest/
 
+market.json
+stocks.json
+stock_scores.json
+sectors.json
+analysts.json
+etfs.json
+financial_holdings.json
+meta.json
+
+完整個股資料未來也可拆分：
+docs/data/latest/stocks/2330.json
+docs/data/latest/stocks/2454.json
+
+避免首頁一次載入所有個股完整明細。
+目前主要程式
+正式流程：
+scripts/export_v2_ui_snapshot.py
+scripts/build_v2_scores.py
+scripts/build_v3_ui_snapshot.py
+
+研究 / Backtest：
+scripts/backtest_v3_model.py
+scripts/backtest_technical_v2_candidate.py
+scripts/backtest_stage_v2_candidate.py
+scripts/analyze_v3_v2_robustness.py
+
+Research Script 不應在未確認前直接視為 Production Pipeline。
+V3 前端
+主要檔案：
+docs/index.html
+docs/app.js
+docs/styles.css
+
+資料來源：
+docs/data/latest/v3_ui.json
+
+GitHub Pages：
+https://mofinhuang.github.io/StockWaveScanner/
+
+Local Development
+專案位置：
+D:\002.Programs\002.Others\Python\StockWaveScanner
+
+Branch：
+main
+
+Python：
+.\.venv\Scripts\python.exe
+
+請不要使用：
+python
+
+或：
+py -3.13
+
+Git 開發規則
+禁止：
+git push --force
+
+除非明確了解風險。
+不要任意使用：
+git reset --hard
+
+不要使用：
+git add .
+
+請明確指定要提交的檔案。
+以下檔案原則上不 Commit：
 .env
+AGENTS.md
 GO.md
-requirements-daily.txt
 
-目前主要 Runtime Dependency：
+Research / Local 文件也應先確認後再提交。
+GitHub Pages 發布
+完成一個完整功能區塊後：
+git status
 
-libsql==0.1.11
-python-dotenv==1.2.3
-tzdata==2025.2
-開發策略
+檢查修改。
+例如：
+git add docs/index.html docs/app.js docs/styles.css
 
-V2 現階段採 UI First：
+確認：
+git status
 
-UI 先上線
-    ↓
-目前已有資料先顯示
-    ↓
-缺資料顯示 WAITING_DATA
-    ↓
-GitHub Actions 每日補歷史資料
-    ↓
-UI 每次重新 Export
-    ↓
-資料完整後自動計算 Score
-    ↓
-TOP10 自動產生
+Commit：
+git commit -m "feat: update V3 UI"
 
-不再等待所有 Historical Backfill 完成後才開發 UI。
+Push：
+git push origin main
 
-開發原則
-UI 優先
-Incremental 優先
-Backfill 由近而遠
-長時間工作交給 GitHub Actions
-缺資料不得轉成 0
-不因缺資料給低分
-不重跑已完成的 Historical Dataset
-發生錯誤時只處理第一個 Error
-完成功能區塊後才 Commit
-禁止 git push --force
-除非明確確認安全，禁止 git reset --hard
-.env 不可 Commit
-GO.md 不可 Commit
-Turso PROD 不可操作
-Current Stage
-
-目前 V2 Dashboard 已成功部署。
-
-已確認：
-
-首頁                  PASS
-市場資料              PASS
-股票搜尋              PASS
-個股明細              PASS
-資料完整度            PASS
-WAITING_DATA Logic    PASS
-
-季度歷史財報仍透過 Historical Backfill DEV 持續補齊。
-
-下一階段：
-
-Quarterly Financial History
-        ↓
-Readiness READY
-        ↓
-Score Generation
-        ↓
-TOP10
-        ↓
-Score Model Calibration
-        ↓
 Backtest
-Disclaimer
+目前 V3 仍屬：
+RESEARCH
 
-StockWaveScanner 為資料研究與程式開發專案。
+Technical V2、Overall V2、Stage V2 已通過目前可使用歷史資料的初步比較，但仍不是最終 Production Model。
+目前限制包括：
+- 有效歷史期間仍短
+- Forward Window 有重疊
+- 月營收存在可用日期 Proxy
+- 部分季財報使用 Research Proxy
+- 尚未完整加入市場相對報酬
+- 尚未加入交易成本
+- 尚需更多歷史資料驗證
+因此目前不應因為單日 Snapshot 分布不好，就直接修改：
+Technical Score
+Overall Weight
+Stage Threshold
 
-系統產生之 Score、Ranking、TOP10 與其他研究資訊僅供研究參考，不構成任何投資建議。
+任何模型調整都應：
+建立 Candidate
+↓
+Historical Backtest
+↓
+Robustness Check
+↓
+確認後再更新 Research Model
+
+後續 V3 Roadmap
+目前 V3 已完成：
+Historical Data
+Score Engine
+
+Technical V2
+Overall V2
+Stage V2
+
+Trade Plan
+
+Research Priority
+Action Priority
+
+V3 UI Snapshot
+
+V3 GitHub Pages 第一版
+
+首頁
+排行
+市場導航
+我的股票導航
+Watchlist
+Holdings 基礎
+
+下一階段預計逐步建置：
+族群資金
+↓
+ETF 持股異動
+↓
+分析師觀點
+↓
+金控股觀察
+↓
+個股頁外部觀察提示
+↓
+Trailing Risk
+↓
+Position Advice
+↓
+更多 Historical Backtest
+↓
+模型校正
+
+實際順序仍以資料來源可行性與模型研究結果為準。
+Final Principle
+StockWaveScanner V3 的核心不是只回答：
+哪一支股票分數最高？
+
+而是依序回答：
+這支股票本身好不好？
+↓
+基本面 / 籌碼面 / 技術面
+
+
+現在市場偏好什麼？
+↓
+族群資金
+
+
+大型 ETF 最近調整什麼？
+↓
+ETF 持股異動
+
+
+市場專業人士近期研究什麼？
+↓
+分析師觀點
+
+
+現在價格位置合理嗎？
+↓
+Stage / Trade Plan
+
+
+如果已經持有：
+↓
+如何管理風險與保護獲利？
+
+最終維持兩個核心原則：
+分數用來找股票，價格結構用來決定行動。
+
+以及：
+族群看資金偏好，ETF 看大型組合調整，分析師看市場研究方向；所有資訊最後仍回到個股本身的基本面、籌碼面、技術面、價格結構與風險。
