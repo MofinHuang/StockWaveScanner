@@ -241,24 +241,42 @@ function switchPage(
             "active"
         );
 
+
+    let mainPage =
+        page;
+
+    if (
+        page === "research"
+    ) {
+
+        mainPage =
+            "top10";
+    }
+
+    if (
+        page === "watchlist"
+        ||
+        page === "holdings"
+    ) {
+
+        mainPage =
+            "my";
+    }
+
     document
         .querySelector(
-            `.nav-item[data-page="${page}"]`
+            `.nav-item[data-page="${mainPage}"]`
         )
         ?.classList.add(
             "active"
         );
 
-    if (
-        page === "watchlist"
-    ) {
-
-        renderWatchlist();
-    }
 
     if (
         page === "research"
     ) {
+
+        renderResearch();
 
         setTimeout(
             () => {
@@ -271,6 +289,30 @@ function switchPage(
             },
             50
         );
+    }
+
+
+    if (
+        page === "watchlist"
+    ) {
+
+        renderWatchlist();
+    }
+
+
+    if (
+        page === "holdings"
+    ) {
+
+        renderHoldings();
+    }
+
+
+    if (
+        page === "my"
+    ) {
+
+        renderMy();
     }
 }
 
@@ -293,9 +335,15 @@ function renderAll() {
 
     renderTop10();
 
+    renderMarket();
+
+    renderMy();
+
     renderResearch();
 
     renderWatchlist();
+
+    renderHoldings();
 }
 
 
@@ -344,6 +392,7 @@ function renderHome() {
             0,
             10
         );
+
 
     page.innerHTML = `
 
@@ -572,6 +621,7 @@ function renderHome() {
         </div>
     `;
 
+
     bindStockRows(
         page
     );
@@ -694,7 +744,7 @@ function stageSummaryBox(
 
 
 // ============================================================
-// TOP10 PAGE
+// RANKING
 // ============================================================
 
 
@@ -708,7 +758,34 @@ function renderTop10() {
     const rows =
         state.researchPriority;
 
+
     page.innerHTML = `
+
+        <div class="page-intro">
+
+            <div class="page-intro-title">
+                個股排行
+            </div>
+
+            <div class="page-intro-description">
+                綜合評分用來找值得優先研究的股票；
+                是否接近可行動位置，仍需搭配 Stage 與 Trade Plan。
+            </div>
+
+        </div>
+
+
+        <div class="ranking-toolbar">
+
+            <button
+                id="openResearch"
+                class="secondary-button no-top-margin"
+            >
+                搜尋 / 篩選全部個股
+            </button>
+
+        </div>
+
 
         <div class="section-header">
 
@@ -719,7 +796,7 @@ function renderTop10() {
                 </div>
 
                 <div class="section-subtitle">
-                    依 Overall Score 由高至低排序
+                    Overall Score 由高至低
                 </div>
 
             </div>
@@ -727,19 +804,6 @@ function renderTop10() {
             <div class="section-count">
                 TOP ${rows.length}
             </div>
-
-        </div>
-
-
-        <div class="ranking-note">
-
-            <strong>研究排行</strong>
-            用來找值得優先研究的股票。
-
-            <br>
-
-            是否接近可行動位置，
-            仍需搭配 Stage 與 Trade Plan。
 
         </div>
 
@@ -773,6 +837,22 @@ function renderTop10() {
         </div>
     `;
 
+
+    document
+        .getElementById(
+            "openResearch"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+
+                switchPage(
+                    "research"
+                );
+            }
+        );
+
+
     bindStockRows(
         page
     );
@@ -780,7 +860,277 @@ function renderTop10() {
 
 
 // ============================================================
-// RESEARCH PAGE
+// MARKET
+// ============================================================
+
+
+function renderMarket() {
+
+    const page =
+        document.getElementById(
+            "page-market"
+        );
+
+    if (!page) {
+
+        return;
+    }
+
+
+    page.innerHTML = `
+
+        <div class="page-intro">
+
+            <div class="page-intro-title">
+                市場觀察
+            </div>
+
+            <div class="page-intro-description">
+                個股評分回答股票本身；
+                市場觀察則用來理解資金、產業與專業研究方向。
+            </div>
+
+        </div>
+
+
+        <div class="feature-grid">
+
+            ${featureCardHtml(
+                "◉",
+                "族群資金",
+                "觀察市場資金目前偏好的產業、次產業與題材。",
+                "當日・當週・當月",
+                "下一階段建置"
+            )}
+
+            ${featureCardHtml(
+                "◇",
+                "分析師觀點",
+                "整理近期分析師研究的股票、族群與主要分析面向。",
+                "當日・近3日・近7日・近30日",
+                "下一階段建置"
+            )}
+
+            ${featureCardHtml(
+                "⇅",
+                "ETF 持股異動",
+                "追蹤指定 ETF 最近新進、加碼、減碼與剔除哪些股票。",
+                "當日・近5日・近20日",
+                "下一階段建置"
+            )}
+
+            ${featureCardHtml(
+                "$",
+                "金控股觀察",
+                "使用金融業專屬 KPI，觀察獲利、股息、法人與金融環境。",
+                "金融股專屬觀察",
+                "下一階段建置"
+            )}
+
+        </div>
+    `;
+}
+
+
+function featureCardHtml(
+    icon,
+    title,
+    description,
+    meta,
+    status
+) {
+
+    return `
+
+        <div class="feature-card">
+
+            <div class="feature-icon">
+                ${escapeHtml(
+                    icon
+                )}
+            </div>
+
+            <div class="feature-title">
+                ${escapeHtml(
+                    title
+                )}
+            </div>
+
+            <div class="feature-description">
+                ${escapeHtml(
+                    description
+                )}
+            </div>
+
+            <div class="feature-meta">
+                ${escapeHtml(
+                    meta
+                )}
+            </div>
+
+            <div class="feature-status">
+                ${escapeHtml(
+                    status
+                )}
+            </div>
+
+        </div>
+    `;
+}
+
+
+// ============================================================
+// MY
+// ============================================================
+
+
+function renderMy() {
+
+    const page =
+        document.getElementById(
+            "page-my"
+        );
+
+    if (!page) {
+
+        return;
+    }
+
+
+    const watchlist =
+        getWatchlist();
+
+    const watchCount =
+        Object
+            .keys(
+                watchlist
+            )
+            .length;
+
+    const holdingCount =
+        Object
+            .values(
+                watchlist
+            )
+            .filter(
+                item =>
+                    Number(
+                        item.shares
+                        || 0
+                    ) > 0
+            )
+            .length;
+
+
+    page.innerHTML = `
+
+        <div class="page-intro">
+
+            <div class="page-intro-title">
+                我的股票
+            </div>
+
+            <div class="page-intro-description">
+                將「正在觀察」與「已經持有」分開管理。
+            </div>
+
+        </div>
+
+
+        <div class="feature-grid">
+
+            <button
+                id="openWatchlist"
+                class="feature-card feature-button"
+            >
+
+                <div class="feature-icon">
+                    ♡
+                </div>
+
+                <div class="feature-title">
+                    Watchlist
+                </div>
+
+                <div class="feature-description">
+                    查看目前正在追蹤的股票、評分與 Stage。
+                </div>
+
+                <div class="feature-count">
+                    ${watchCount} 檔
+                </div>
+
+                <div class="feature-link">
+                    查看自選股票 →
+                </div>
+
+            </button>
+
+
+            <button
+                id="openHoldings"
+                class="feature-card feature-button"
+            >
+
+                <div class="feature-icon">
+                    ▣
+                </div>
+
+                <div class="feature-title">
+                    Holdings
+                </div>
+
+                <div class="feature-description">
+                    管理持有成本、股數、損益、Stage 與風險。
+                </div>
+
+                <div class="feature-count">
+                    ${holdingCount} 檔
+                </div>
+
+                <div class="feature-link">
+                    查看持股 →
+                </div>
+
+            </button>
+
+        </div>
+    `;
+
+
+    document
+        .getElementById(
+            "openWatchlist"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+
+                switchPage(
+                    "watchlist"
+                );
+            }
+        );
+
+
+    document
+        .getElementById(
+            "openHoldings"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+
+                switchPage(
+                    "holdings"
+                );
+            }
+        );
+}
+
+
+// ============================================================
+// RESEARCH
 // ============================================================
 
 
@@ -791,7 +1141,25 @@ function renderResearch() {
             "page-research"
         );
 
+    if (!page) {
+
+        return;
+    }
+
+
     page.innerHTML = `
+
+        <div class="page-back-row">
+
+            <button
+                id="backToRanking"
+                class="text-button"
+            >
+                ← 返回個股排行
+            </button>
+
+        </div>
+
 
         <div class="search-box">
 
@@ -829,14 +1197,14 @@ function renderResearch() {
                 class="filter-button"
                 data-stage="READY"
             >
-                Ready
+                進場訊號
             </button>
 
             <button
                 class="filter-button"
                 data-stage="SETUP"
             >
-                Setup
+                蓄勢
             </button>
 
             <button
@@ -844,6 +1212,20 @@ function renderResearch() {
                 data-stage="WATCH"
             >
                 觀察
+            </button>
+
+            <button
+                class="filter-button"
+                data-stage="EXTENDED"
+            >
+                漲幅延伸
+            </button>
+
+            <button
+                class="filter-button"
+                data-stage="AVOID"
+            >
+                暫不關注
             </button>
 
         </div>
@@ -855,18 +1237,36 @@ function renderResearch() {
         ></div>
     `;
 
+
+    document
+        .getElementById(
+            "backToRanking"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+
+                switchPage(
+                    "top10"
+                );
+            }
+        );
+
+
     const input =
         document.getElementById(
             "stockSearch"
         );
 
-    input.addEventListener(
-        "input",
-        () => {
+    input
+        ?.addEventListener(
+            "input",
+            () => {
 
-            renderResearchList();
-        }
-    );
+                renderResearchList();
+            }
+        );
+
 
     document
         .querySelectorAll(
@@ -900,6 +1300,7 @@ function renderResearch() {
             }
         );
 
+
     renderResearchList();
 }
 
@@ -916,6 +1317,7 @@ function renderResearchList() {
         return;
     }
 
+
     const input =
         document.getElementById(
             "stockSearch"
@@ -929,6 +1331,7 @@ function renderResearchList() {
         .trim()
         .toLowerCase();
 
+
     const stageFilter =
         document
             .querySelector(
@@ -938,8 +1341,10 @@ function renderResearchList() {
             ?.stage
         || "ALL";
 
+
     let rows =
         [...state.stocks];
+
 
     if (query) {
 
@@ -958,8 +1363,12 @@ function renderResearchList() {
                         stock.market,
 
                     ]
-                    .filter(Boolean)
-                    .join(" ")
+                    .filter(
+                        Boolean
+                    )
+                    .join(
+                        " "
+                    )
                     .toLowerCase();
 
                     return searchable.includes(
@@ -968,6 +1377,7 @@ function renderResearchList() {
                 }
             );
     }
+
 
     if (
         stageFilter !== "ALL"
@@ -981,6 +1391,7 @@ function renderResearchList() {
                     stageFilter
             );
     }
+
 
     rows.sort(
         (
@@ -1008,11 +1419,13 @@ function renderResearchList() {
         }
     );
 
+
     rows =
         rows.slice(
             0,
             150
         );
+
 
     if (!rows.length) {
 
@@ -1026,6 +1439,7 @@ function renderResearchList() {
         return;
     }
 
+
     container.innerHTML =
         rows
             .map(
@@ -1034,7 +1448,10 @@ function renderResearchList() {
                         stock
                     )
             )
-            .join("");
+            .join(
+                ""
+            );
+
 
     bindStockRows(
         container
@@ -1064,6 +1481,7 @@ function stockRowHtml(
     const stage =
         stock.stage
         || {};
+
 
     return `
 
@@ -1179,7 +1597,8 @@ function stockRowHtml(
 
                 ${
                     showAction
-                    && stock.action
+                    &&
+                    stock.action
 
                     ?
 
@@ -1233,7 +1652,7 @@ function bindStockRows(
 ) {
 
     root
-        .querySelectorAll(
+        ?.querySelectorAll(
             ".stock-row"
         )
         .forEach(
@@ -1265,6 +1684,12 @@ function renderWatchlist() {
             "page-watchlist"
         );
 
+    if (!page) {
+
+        return;
+    }
+
+
     const watchlist =
         getWatchlist();
 
@@ -1281,14 +1706,28 @@ function renderWatchlist() {
                         )
                     )
             )
-            .filter(Boolean);
+            .filter(
+                Boolean
+            );
+
 
     if (!rows.length) {
 
         page.innerHTML = `
 
+            <div class="page-back-row">
+
+                <button
+                    id="backFromWatchlist"
+                    class="text-button"
+                >
+                    ← 返回我的股票
+                </button>
+
+            </div>
+
             <div class="section-title">
-                自選股票
+                Watchlist
             </div>
 
             <div class="empty-state">
@@ -1302,14 +1741,19 @@ function renderWatchlist() {
                 </div>
 
                 <div class="metric-sub">
-                    從個股頁或排行打開股票後即可加入
+                    從排行或個股搜尋開啟股票後即可加入。
                 </div>
 
             </div>
         `;
 
+        bindBackToMy(
+            "backFromWatchlist"
+        );
+
         return;
     }
+
 
     rows.sort(
         (
@@ -1327,18 +1771,31 @@ function renderWatchlist() {
             )
     );
 
+
     page.innerHTML = `
+
+        <div class="page-back-row">
+
+            <button
+                id="backFromWatchlist"
+                class="text-button"
+            >
+                ← 返回我的股票
+            </button>
+
+        </div>
+
 
         <div class="section-header">
 
             <div>
 
                 <div class="section-title no-margin">
-                    自選股票
+                    Watchlist
                 </div>
 
                 <div class="section-subtitle">
-                    ${rows.length} 檔
+                    ${rows.length} 檔觀察股票
                 </div>
 
             </div>
@@ -1356,15 +1813,377 @@ function renderWatchlist() {
                                 stock
                             )
                     )
-                    .join("")
+                    .join(
+                        ""
+                    )
             }
 
         </div>
     `;
 
+
+    bindBackToMy(
+        "backFromWatchlist"
+    );
+
+
     bindStockRows(
         page
     );
+}
+
+
+// ============================================================
+// HOLDINGS
+// ============================================================
+
+
+function renderHoldings() {
+
+    const page =
+        document.getElementById(
+            "page-holdings"
+        );
+
+    if (!page) {
+
+        return;
+    }
+
+
+    const watchlist =
+        getWatchlist();
+
+
+    const rows =
+        Object
+            .values(
+                watchlist
+            )
+            .filter(
+                item =>
+                    Number(
+                        item.shares
+                        || 0
+                    ) > 0
+            )
+            .map(
+                item => ({
+
+                    position:
+                        item,
+
+                    stock:
+                        state.stockMap.get(
+                            String(
+                                item.stock_id
+                            )
+                        ),
+                })
+            )
+            .filter(
+                item =>
+                    Boolean(
+                        item.stock
+                    )
+            );
+
+
+    if (!rows.length) {
+
+        page.innerHTML = `
+
+            <div class="page-back-row">
+
+                <button
+                    id="backFromHoldings"
+                    class="text-button"
+                >
+                    ← 返回我的股票
+                </button>
+
+            </div>
+
+            <div class="section-title">
+                Holdings
+            </div>
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    ▣
+                </div>
+
+                <div>
+                    尚未建立持股資料
+                </div>
+
+                <div class="metric-sub">
+                    在個股明細輸入平均成本與股數後，
+                    會自動出現在 Holdings。
+                </div>
+
+            </div>
+        `;
+
+
+        bindBackToMy(
+            "backFromHoldings"
+        );
+
+        return;
+    }
+
+
+    rows.sort(
+        (
+            a,
+            b
+        ) =>
+            Number(
+                b.stock.score?.overall
+                ?? 0
+            )
+            -
+            Number(
+                a.stock.score?.overall
+                ?? 0
+            )
+    );
+
+
+    page.innerHTML = `
+
+        <div class="page-back-row">
+
+            <button
+                id="backFromHoldings"
+                class="text-button"
+            >
+                ← 返回我的股票
+            </button>
+
+        </div>
+
+
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    Holdings
+                </div>
+
+                <div class="section-subtitle">
+                    ${rows.length} 檔持股
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="holding-list">
+
+            ${
+                rows
+                    .map(
+                        item =>
+                            holdingRowHtml(
+                                item.stock,
+                                item.position
+                            )
+                    )
+                    .join(
+                        ""
+                    )
+            }
+
+        </div>
+    `;
+
+
+    bindBackToMy(
+        "backFromHoldings"
+    );
+
+
+    bindStockRows(
+        page
+    );
+}
+
+
+function bindBackToMy(
+    buttonId
+) {
+
+    document
+        .getElementById(
+            buttonId
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+
+                switchPage(
+                    "my"
+                );
+            }
+        );
+}
+
+
+function holdingRowHtml(
+    stock,
+    position
+) {
+
+    const shares =
+        Number(
+            position.shares
+            || 0
+        );
+
+    const avgCost =
+        Number(
+            position.avg_cost
+            || 0
+        );
+
+    const latest =
+        Number(
+            stock.price?.close
+            || 0
+        );
+
+    const cost =
+        shares
+        *
+        avgCost;
+
+    const marketValue =
+        shares
+        *
+        latest;
+
+    const pnl =
+        marketValue
+        -
+        cost;
+
+    const returnPct =
+        cost > 0
+        ?
+        (
+            pnl
+            /
+            cost
+            *
+            100
+        )
+        :
+        0;
+
+
+    return `
+
+        <div
+            class="stock-row"
+            data-stock-id="${escapeHtml(
+                stock.stock_id
+            )}"
+        >
+
+            <div class="stock-main">
+
+                <div class="stock-title">
+
+                    <span>
+                        ${escapeHtml(
+                            stock.short_name
+                            || "--"
+                        )}
+                    </span>
+
+                    <span class="stock-code">
+                        ${escapeHtml(
+                            stock.stock_id
+                        )}
+                    </span>
+
+                </div>
+
+
+                <div class="stock-meta">
+
+                    ${stageBadge(
+                        stock.stage?.code,
+                        stock.stage?.label
+                    )}
+
+                </div>
+
+
+                <div class="holding-metrics">
+
+                    <span>
+                        成本
+                        ${formatNumber(
+                            avgCost,
+                            2
+                        )}
+                    </span>
+
+                    <span>
+                        ${formatInteger(
+                            shares
+                        )}
+                        股
+                    </span>
+
+                    <span>
+                        損益
+                        ${formatInteger(
+                            pnl
+                        )}
+                    </span>
+
+                    <span
+                        class="${changeClass(
+                            returnPct
+                        )}"
+                    >
+                        ${formatPercent(
+                            returnPct
+                        )}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="stock-price">
+
+                <div class="stock-price-main">
+                    ${formatNumber(
+                        latest,
+                        2
+                    )}
+                </div>
+
+                <div class="metric-sub">
+                    市值
+                    ${formatInteger(
+                        marketValue
+                    )}
+                </div>
+
+            </div>
+
+        </div>
+    `;
 }
 
 
@@ -1389,6 +2208,7 @@ function showStockDetail(
         return;
     }
 
+
     const overlay =
         document.getElementById(
             "detailOverlay"
@@ -1398,6 +2218,7 @@ function showStockDetail(
         document.getElementById(
             "detailContent"
         );
+
 
     const price =
         stock.price
@@ -1435,6 +2256,7 @@ function showStockDetail(
             ]
         );
 
+
     container.innerHTML = `
 
         <div class="detail-header">
@@ -1449,10 +2271,13 @@ function showStockDetail(
                 </div>
 
                 <div class="detail-code">
+
                     ${escapeHtml(
                         stock.stock_id
                     )}
+
                     ・
+
                     ${escapeHtml(
                         stock.market
                         || "--"
@@ -1471,6 +2296,7 @@ function showStockDetail(
 
                         ""
                     }
+
                 </div>
 
             </div>
@@ -1520,7 +2346,7 @@ function showStockDetail(
             <div class="card metric-card">
 
                 <div class="metric-label">
-                    Stage
+                    交易階段
                 </div>
 
                 <div class="metric-value stage-title">
@@ -1553,7 +2379,7 @@ function showStockDetail(
             <div class="score-grid score-grid-4">
 
                 ${scoreBox(
-                    "Overall",
+                    "綜合",
                     score.overall,
                     true
                 )}
@@ -1581,7 +2407,7 @@ function showStockDetail(
         <div class="detail-section">
 
             <div class="detail-section-title">
-                Technical V2
+                技術面結構
             </div>
 
             ${keyValue(
@@ -1640,7 +2466,7 @@ function showStockDetail(
             </div>
 
             ${keyValue(
-                "買進區間",
+                "買進參考區",
                 priceRange(
                     trade.buy_zone_low,
                     trade.buy_zone_high
@@ -1685,7 +2511,7 @@ function showStockDetail(
             )}
 
             ${keyValue(
-                "目標區間",
+                "目標參考區",
                 priceRange(
                     trade.target_low,
                     trade.target_high
@@ -1693,7 +2519,7 @@ function showStockDetail(
             )}
 
             ${keyValue(
-                "Reward / Risk",
+                "風險報酬比",
                 formatNumber(
                     trade.reward_risk_ratio,
                     2
@@ -1708,6 +2534,7 @@ function showStockDetail(
             <div class="detail-section-title">
                 我的自選 / 持股
             </div>
+
 
             <div class="position-grid">
 
@@ -1793,20 +2620,22 @@ function showStockDetail(
         </div>
     `;
 
+
     document
         .getElementById(
             "detailClose"
         )
-        .addEventListener(
+        ?.addEventListener(
             "click",
             hideStockDetail
         );
+
 
     document
         .getElementById(
             "saveWatchlist"
         )
-        .addEventListener(
+        ?.addEventListener(
             "click",
             () => {
 
@@ -1815,6 +2644,7 @@ function showStockDetail(
                 );
             }
         );
+
 
     document
         .getElementById(
@@ -1831,8 +2661,13 @@ function showStockDetail(
                 hideStockDetail();
 
                 renderWatchlist();
+
+                renderHoldings();
+
+                renderMy();
             }
         );
+
 
     overlay.classList.add(
         "open"
@@ -1847,20 +2682,21 @@ function bindDetailOverlay() {
             "detailOverlay"
         );
 
-    overlay.addEventListener(
-        "click",
-        event => {
+    overlay
+        ?.addEventListener(
+            "click",
+            event => {
 
-            if (
-                event.target
-                ===
-                overlay
-            ) {
+                if (
+                    event.target
+                    ===
+                    overlay
+                ) {
 
-                hideStockDetail();
+                    hideStockDetail();
+                }
             }
-        }
-    );
+        );
 }
 
 
@@ -1870,7 +2706,7 @@ function hideStockDetail() {
         .getElementById(
             "detailOverlay"
         )
-        .classList.remove(
+        ?.classList.remove(
             "open"
         );
 }
@@ -1901,6 +2737,7 @@ function scoreBox(
             </div>
 
             <div class="score-value">
+
                 ${
                     value === null
                     ||
@@ -1917,6 +2754,7 @@ function scoreBox(
                         1
                     )
                 }
+
             </div>
 
         </div>
@@ -1993,6 +2831,7 @@ function statusBadge(
         )
         .toUpperCase();
 
+
     if (
         normalized === "READY"
         ||
@@ -2010,6 +2849,7 @@ function statusBadge(
             </span>
         `;
     }
+
 
     return `
 
@@ -2070,19 +2910,23 @@ function saveWatchlistPosition(
         ]
         || {};
 
+
     const avgCost =
         document
             .getElementById(
                 "positionAvgCost"
             )
-            .value;
+            ?.value
+        || "";
 
     const shares =
         document
             .getElementById(
                 "positionShares"
             )
-            .value;
+            ?.value
+        || "";
+
 
     watchlist[
         stock.stock_id
@@ -2116,6 +2960,7 @@ function saveWatchlistPosition(
             0,
     };
 
+
     localStorage.setItem(
         WATCHLIST_KEY,
         JSON.stringify(
@@ -2123,7 +2968,13 @@ function saveWatchlistPosition(
         )
     );
 
+
     renderWatchlist();
+
+    renderHoldings();
+
+    renderMy();
+
 
     showStockDetail(
         stock.stock_id
@@ -2142,12 +2993,20 @@ function removeWatchlist(
         stockId
     ];
 
+
     localStorage.setItem(
         WATCHLIST_KEY,
         JSON.stringify(
             watchlist
         )
     );
+
+
+    renderWatchlist();
+
+    renderHoldings();
+
+    renderMy();
 }
 
 
@@ -2174,6 +3033,7 @@ function positionSummary(
             || 0
         );
 
+
     if (
         shares <= 0
         ||
@@ -2190,6 +3050,7 @@ function positionSummary(
             </div>
         `;
     }
+
 
     const cost =
         shares
@@ -2218,6 +3079,7 @@ function positionSummary(
         )
         :
         0;
+
 
     return `
 
@@ -2307,6 +3169,7 @@ function formatNumber(
         return "--";
     }
 
+
     const numeric =
         Number(
             value
@@ -2320,6 +3183,7 @@ function formatNumber(
 
         return "--";
     }
+
 
     return numeric
         .toLocaleString(
@@ -2350,6 +3214,7 @@ function formatInteger(
         return "--";
     }
 
+
     const numeric =
         Number(
             value
@@ -2364,12 +3229,14 @@ function formatInteger(
         return "--";
     }
 
-    return Math.round(
-        numeric
-    )
-    .toLocaleString(
-        "zh-TW"
-    );
+
+    return Math
+        .round(
+            numeric
+        )
+        .toLocaleString(
+            "zh-TW"
+        );
 }
 
 
@@ -2388,6 +3255,7 @@ function formatPercent(
         return "--";
     }
 
+
     const numeric =
         Number(
             value
@@ -2402,12 +3270,14 @@ function formatPercent(
         return "--";
     }
 
+
     const sign =
         numeric > 0
         ?
         "+"
         :
         "";
+
 
     return (
         `${sign}${numeric.toFixed(2)}%`
@@ -2430,6 +3300,7 @@ function formatPercentRaw(
         return "--";
     }
 
+
     const numeric =
         Number(
             value
@@ -2443,6 +3314,7 @@ function formatPercentRaw(
 
         return "--";
     }
+
 
     return (
         `${numeric.toFixed(2)}%`
@@ -2467,6 +3339,7 @@ function priceRange(
 
         return "--";
     }
+
 
     return (
         `${formatNumber(
