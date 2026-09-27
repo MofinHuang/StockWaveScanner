@@ -1,7 +1,6 @@
 :root {
     --bg: #0b1020;
     --bg-soft: #11182b;
-
     --card: #151d33;
     --card-2: #1a2440;
 
@@ -19,25 +18,25 @@
     --yellow: #ffd666;
 
     --radius: 18px;
-    --radius-small: 12px;
 
     --shadow:
         0 12px 30px
         rgba(0, 0, 0, 0.22);
 }
 
-
 * {
     box-sizing: border-box;
 }
-
 
 html,
 body {
     margin: 0;
     padding: 0;
-
     min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
 
     background:
         linear-gradient(
@@ -58,34 +57,23 @@ body {
         sans-serif;
 }
 
-
-body {
-    min-height: 100vh;
-}
-
-
 button,
 input {
     font: inherit;
 }
 
-
 button {
     cursor: pointer;
 }
 
-
-/* ==========================================================
-   APP
-   ========================================================== */
-
-
 .app-shell {
     max-width: 1180px;
 
-    margin: 0 auto;
+    margin:
+        0 auto;
 
-    min-height: 100vh;
+    min-height:
+        100vh;
 
     padding-bottom:
         calc(
@@ -94,12 +82,6 @@ button {
             env(safe-area-inset-bottom)
         );
 }
-
-
-/* ==========================================================
-   HEADER
-   ========================================================== */
-
 
 .top-header {
     position: sticky;
@@ -112,7 +94,8 @@ button {
 
     align-items: center;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
     padding:
         18px
@@ -135,7 +118,6 @@ button {
         var(--border);
 }
 
-
 .brand {
     font-size: 20px;
 
@@ -143,7 +125,6 @@ button {
 
     letter-spacing: 0.2px;
 }
-
 
 .brand-subtitle {
     margin-top: 3px;
@@ -154,13 +135,13 @@ button {
         var(--text-soft);
 }
 
-
 .header-status {
     padding:
         7px
         10px;
 
-    border-radius: 999px;
+    border-radius:
+        999px;
 
     background:
         rgba(
@@ -178,23 +159,15 @@ button {
     font-weight: 700;
 }
 
-
-/* ==========================================================
-   PAGE / NAV
-   ========================================================== */
-
-
 .page {
     display: none;
 
     padding: 16px;
 }
 
-
 .page.active {
     display: block;
 }
-
 
 .bottom-nav {
     position: fixed;
@@ -245,20 +218,22 @@ button {
         var(--border);
 }
 
-
 .nav-item {
     border: 0;
 
-    background: transparent;
+    background:
+        transparent;
 
     color:
         var(--text-dim);
 
     display: flex;
 
-    flex-direction: column;
+    flex-direction:
+        column;
 
-    align-items: center;
+    align-items:
+        center;
 
     gap: 3px;
 
@@ -267,22 +242,14 @@ button {
     font-size: 11px;
 }
 
-
 .nav-item.active {
     color:
         var(--blue);
 }
 
-
 .nav-icon {
     font-size: 20px;
 }
-
-
-/* ==========================================================
-   SECTION
-   ========================================================== */
-
 
 .section-title {
     margin:
@@ -295,11 +262,9 @@ button {
     font-weight: 800;
 }
 
-
 .section-title.no-margin {
     margin: 0;
 }
-
 
 .section-header {
     margin:
@@ -309,13 +274,14 @@ button {
 
     display: flex;
 
-    align-items: flex-end;
+    align-items:
+        flex-end;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
     gap: 12px;
 }
-
 
 .section-subtitle {
     margin-top: 4px;
@@ -326,7 +292,6 @@ button {
     font-size: 11px;
 }
 
-
 .section-count {
     color:
         var(--text-soft);
@@ -335,12 +300,6 @@ button {
 
     font-weight: 700;
 }
-
-
-/* ==========================================================
-   HERO
-   ========================================================== */
-
 
 .hero-card {
     padding: 18px;
@@ -378,14 +337,12 @@ button {
         var(--shadow);
 }
 
-
 .hero-label {
     color:
         var(--text-soft);
 
     font-size: 12px;
 }
-
 
 .hero-value {
     margin-top: 5px;
@@ -394,7 +351,6 @@ button {
 
     font-weight: 850;
 }
-
 
 .hero-description {
     margin-top: 8px;
@@ -406,12 +362,6 @@ button {
 
     line-height: 1.55;
 }
-
-
-/* ==========================================================
-   PAGE INTRO / FEATURE
-   ========================================================== */
-
 
 .page-intro {
     margin-bottom: 18px;
@@ -443,13 +393,11 @@ button {
         var(--border);
 }
 
-
 .page-intro-title {
     font-size: 21px;
 
     font-weight: 850;
 }
-
 
 .page-intro-description {
     margin-top: 7px;
@@ -462,6 +410,34 @@ button {
     line-height: 1.6;
 }
 
+.page-back-row {
+    margin-bottom: 12px;
+}
+
+.text-button {
+    padding: 0;
+
+    border: 0;
+
+    background:
+        transparent;
+
+    color:
+        var(--blue);
+
+    font-size: 12px;
+
+    font-weight: 700;
+}
+
+.ranking-toolbar {
+    margin-bottom: 14px;
+}
+
+.no-top-margin {
+    margin-top:
+        0 !important;
+}
 
 .feature-grid {
     display: grid;
@@ -477,7 +453,6 @@ button {
 
     gap: 10px;
 }
-
 
 .feature-card {
     min-width: 0;
@@ -498,7 +473,6 @@ button {
         var(--text);
 }
 
-
 .feature-button {
     width: 100%;
 
@@ -506,7 +480,6 @@ button {
 
     appearance: none;
 }
-
 
 .feature-button:hover {
     background:
@@ -521,14 +494,12 @@ button {
         );
 }
 
-
 .feature-icon {
     font-size: 25px;
 
     color:
         var(--blue);
 }
-
 
 .feature-title {
     margin-top: 10px;
@@ -537,7 +508,6 @@ button {
 
     font-weight: 850;
 }
-
 
 .feature-description {
     margin-top: 7px;
@@ -552,7 +522,6 @@ button {
     line-height: 1.55;
 }
 
-
 .feature-meta {
     margin-top: 12px;
 
@@ -561,7 +530,6 @@ button {
 
     font-size: 10px;
 }
-
 
 .feature-status {
     margin-top: 8px;
@@ -590,7 +558,6 @@ button {
     font-weight: 750;
 }
 
-
 .feature-count {
     margin-top: 12px;
 
@@ -598,7 +565,6 @@ button {
 
     font-weight: 850;
 }
-
 
 .feature-link {
     margin-top: 8px;
@@ -610,43 +576,6 @@ button {
 
     font-weight: 750;
 }
-
-
-.page-back-row {
-    margin-bottom: 12px;
-}
-
-
-.text-button {
-    padding: 0;
-
-    border: 0;
-
-    background: transparent;
-
-    color:
-        var(--blue);
-
-    font-size: 12px;
-
-    font-weight: 700;
-}
-
-
-.ranking-toolbar {
-    margin-bottom: 14px;
-}
-
-
-.no-top-margin {
-    margin-top: 0 !important;
-}
-
-
-/* ==========================================================
-   GRID
-   ========================================================== */
-
 
 .grid-2 {
     display: grid;
@@ -665,7 +594,6 @@ button {
     margin-top: 10px;
 }
 
-
 .card {
     background:
         var(--card);
@@ -680,11 +608,9 @@ button {
     padding: 14px;
 }
 
-
 .metric-card {
     min-height: 93px;
 }
-
 
 .metric-label {
     color:
@@ -693,7 +619,6 @@ button {
     font-size: 12px;
 }
 
-
 .metric-value {
     margin-top: 5px;
 
@@ -701,7 +626,6 @@ button {
 
     font-weight: 800;
 }
-
 
 .metric-sub {
     margin-top: 4px;
@@ -712,16 +636,9 @@ button {
     font-size: 11px;
 }
 
-
 .stage-title {
     margin-top: 10px;
 }
-
-
-/* ==========================================================
-   SCORE SUMMARY
-   ========================================================== */
-
 
 .score-summary-grid {
     display: grid;
@@ -737,7 +654,6 @@ button {
 
     gap: 8px;
 }
-
 
 .summary-metric {
     min-width: 0;
@@ -758,14 +674,12 @@ button {
     border-radius: 14px;
 }
 
-
 .summary-metric-label {
     color:
         var(--text-soft);
 
     font-size: 10px;
 }
-
 
 .summary-metric-value {
     margin-top: 5px;
@@ -774,12 +688,6 @@ button {
 
     font-weight: 850;
 }
-
-
-/* ==========================================================
-   STAGE SUMMARY
-   ========================================================== */
-
 
 .stage-summary-grid {
     display: grid;
@@ -795,7 +703,6 @@ button {
 
     gap: 8px;
 }
-
 
 .stage-summary-box {
     padding:
@@ -814,13 +721,11 @@ button {
         var(--card);
 }
 
-
 .stage-summary-count {
     font-size: 20px;
 
     font-weight: 850;
 }
-
 
 .stage-summary-label {
     margin-top: 4px;
@@ -830,7 +735,6 @@ button {
 
     font-size: 10px;
 }
-
 
 .stage-breakout {
     border-color:
@@ -842,7 +746,6 @@ button {
         );
 }
 
-
 .stage-ready {
     border-color:
         rgba(
@@ -853,7 +756,6 @@ button {
         );
 }
 
-
 .stage-setup {
     border-color:
         rgba(
@@ -863,7 +765,6 @@ button {
             0.28
         );
 }
-
 
 .stage-extended,
 .stage-avoid {
@@ -876,21 +777,15 @@ button {
         );
 }
 
-
-/* ==========================================================
-   STOCK LIST
-   ========================================================== */
-
-
 .stock-list,
 .holding-list {
     display: flex;
 
-    flex-direction: column;
+    flex-direction:
+        column;
 
     gap: 8px;
 }
-
 
 .stock-row {
     display: grid;
@@ -924,7 +819,6 @@ button {
         border-color 0.15s ease;
 }
 
-
 .stock-row:hover {
     background:
         var(--card-2);
@@ -938,11 +832,9 @@ button {
         );
 }
 
-
 .stock-main {
     min-width: 0;
 }
-
 
 .stock-title {
     display: flex;
@@ -958,14 +850,12 @@ button {
     font-weight: 750;
 }
 
-
 .stock-code {
     color:
         var(--text-soft);
 
     font-size: 12px;
 }
-
 
 .rank-badge {
     min-width: 31px;
@@ -994,7 +884,6 @@ button {
     font-weight: 850;
 }
 
-
 .stock-meta {
     margin-top: 6px;
 
@@ -1004,7 +893,6 @@ button {
 
     gap: 5px;
 }
-
 
 .score-inline,
 .holding-metrics {
@@ -1024,14 +912,12 @@ button {
     font-size: 10px;
 }
 
-
 .score-inline strong {
     color:
         var(--text);
 
     font-size: 12px;
 }
-
 
 .stock-action {
     margin-top: 7px;
@@ -1044,11 +930,9 @@ button {
     line-height: 1.4;
 }
 
-
 .stock-price {
     text-align: right;
 }
-
 
 .stock-price-main {
     font-size: 16px;
@@ -1056,20 +940,14 @@ button {
     font-weight: 800;
 }
 
-
 .stock-change {
     margin-top: 4px;
 
     font-size: 12px;
 }
 
-
-/* ==========================================================
-   BADGES
-   ========================================================== */
-
-
-.badge {
+.badge,
+.stage-badge {
     display: inline-flex;
 
     align-items: center;
@@ -1087,7 +965,6 @@ button {
     font-weight: 800;
 }
 
-
 .badge-ready {
     color:
         var(--green);
@@ -1100,7 +977,6 @@ button {
             0.12
         );
 }
-
 
 .badge-wait {
     color:
@@ -1115,7 +991,6 @@ button {
         );
 }
 
-
 .badge-blue {
     color:
         var(--blue);
@@ -1128,24 +1003,6 @@ button {
             0.12
         );
 }
-
-
-.stage-badge {
-    display: inline-flex;
-
-    align-items: center;
-
-    padding:
-        4px
-        8px;
-
-    border-radius: 999px;
-
-    font-size: 10px;
-
-    font-weight: 850;
-}
-
 
 .stage-badge-breakout {
     color:
@@ -1160,7 +1017,6 @@ button {
         );
 }
 
-
 .stage-badge-ready {
     color:
         var(--green);
@@ -1173,7 +1029,6 @@ button {
             0.12
         );
 }
-
 
 .stage-badge-setup {
     color:
@@ -1188,7 +1043,6 @@ button {
         );
 }
 
-
 .stage-badge-watch {
     color:
         var(--text-soft);
@@ -1201,7 +1055,6 @@ button {
             0.10
         );
 }
-
 
 .stage-badge-extended {
     color:
@@ -1216,7 +1069,6 @@ button {
         );
 }
 
-
 .stage-badge-avoid {
     color:
         var(--red);
@@ -1229,7 +1081,6 @@ button {
             0.12
         );
 }
-
 
 .stage-badge-waiting_data,
 .stage-badge-unknown {
@@ -1245,37 +1096,20 @@ button {
         );
 }
 
-
-/* ==========================================================
-   CHANGE COLOR
-   Taiwan convention:
-   red = up
-   green = down
-   ========================================================== */
-
-
 .positive {
     color:
         var(--red);
 }
-
 
 .negative {
     color:
         var(--green);
 }
 
-
 .neutral {
     color:
         var(--text-soft);
 }
-
-
-/* ==========================================================
-   SEARCH / FILTER
-   ========================================================== */
-
 
 .search-box {
     position: sticky;
@@ -1292,7 +1126,6 @@ button {
     background:
         var(--bg);
 }
-
 
 .search-input {
     width: 100%;
@@ -1316,7 +1149,6 @@ button {
     outline: none;
 }
 
-
 .search-input:focus {
     border-color:
         rgba(
@@ -1326,7 +1158,6 @@ button {
             0.55
         );
 }
-
 
 .filter-bar {
     position: sticky;
@@ -1349,7 +1180,6 @@ button {
     background:
         var(--bg);
 }
-
 
 .filter-button {
     flex:
@@ -1376,7 +1206,6 @@ button {
     font-size: 11px;
 }
 
-
 .filter-button.active {
     color:
         var(--blue);
@@ -1397,12 +1226,6 @@ button {
             0.10
         );
 }
-
-
-/* ==========================================================
-   EMPTY
-   ========================================================== */
-
 
 .empty-state {
     margin-top: 30px;
@@ -1429,18 +1252,11 @@ button {
         var(--text-soft);
 }
 
-
 .empty-icon {
     font-size: 38px;
 
     margin-bottom: 10px;
 }
-
-
-/* ==========================================================
-   DETAIL
-   ========================================================== */
-
 
 .detail-overlay {
     display: none;
@@ -1460,11 +1276,9 @@ button {
         );
 }
 
-
 .detail-overlay.open {
     display: block;
 }
-
 
 .detail-sheet {
     position: absolute;
@@ -1498,7 +1312,6 @@ button {
         var(--border);
 }
 
-
 .detail-handle {
     width: 42px;
 
@@ -1518,14 +1331,12 @@ button {
         );
 }
 
-
 .detail-content {
     padding:
         8px
         16px
         34px;
 }
-
 
 .detail-header {
     display: flex;
@@ -1541,13 +1352,11 @@ button {
     margin-bottom: 15px;
 }
 
-
 .detail-stock-name {
     font-size: 23px;
 
     font-weight: 850;
 }
-
 
 .detail-code {
     margin-top: 4px;
@@ -1557,7 +1366,6 @@ button {
 
     font-size: 12px;
 }
-
 
 .close-button {
     border: 0;
@@ -1577,18 +1385,11 @@ button {
     font-size: 18px;
 }
 
-
-/* ==========================================================
-   SCORE
-   ========================================================== */
-
-
 .score-grid {
     display: grid;
 
     gap: 8px;
 }
-
 
 .score-grid-4 {
     grid-template-columns:
@@ -1597,7 +1398,6 @@ button {
             1fr
         );
 }
-
 
 .score-box {
     padding:
@@ -1615,7 +1415,6 @@ button {
         1px solid
         var(--border);
 }
-
 
 .score-box-primary {
     border-color:
@@ -1635,14 +1434,12 @@ button {
         );
 }
 
-
 .score-name {
     font-size: 10px;
 
     color:
         var(--text-soft);
 }
-
 
 .score-value {
     margin-top: 4px;
@@ -1651,12 +1448,6 @@ button {
 
     font-weight: 850;
 }
-
-
-/* ==========================================================
-   DETAIL SECTIONS
-   ========================================================== */
-
 
 .detail-section {
     margin-top: 12px;
@@ -1674,7 +1465,6 @@ button {
         var(--radius);
 }
 
-
 .detail-section-title {
     margin-bottom: 12px;
 
@@ -1682,7 +1472,6 @@ button {
 
     font-weight: 800;
 }
-
 
 .key-value {
     display: grid;
@@ -1707,29 +1496,20 @@ button {
     font-size: 12px;
 }
 
-
 .key-value:last-child {
     border-bottom: 0;
 }
-
 
 .key-label {
     color:
         var(--text-soft);
 }
 
-
 .key-data {
     text-align: right;
 
     font-weight: 650;
 }
-
-
-/* ==========================================================
-   POSITION
-   ========================================================== */
-
 
 .position-grid {
     display: grid;
@@ -1740,7 +1520,6 @@ button {
 
     gap: 8px;
 }
-
 
 .position-input {
     width: 100%;
@@ -1762,14 +1541,12 @@ button {
     border-radius: 10px;
 }
 
-
 .position-label {
     color:
         var(--text-soft);
 
     font-size: 11px;
 }
-
 
 .position-hint {
     margin-top: 10px;
@@ -1780,23 +1557,13 @@ button {
     font-size: 11px;
 }
 
-
 .position-summary {
     margin-top: 10px;
 }
 
-
-/* ==========================================================
-   BUTTON
-   ========================================================== */
-
-
-.primary-button {
+.primary-button,
+.secondary-button {
     width: 100%;
-
-    margin-top: 12px;
-
-    border: 0;
 
     border-radius: 14px;
 
@@ -1804,37 +1571,461 @@ button {
         12px
         14px;
 
+    font-weight: 800;
+}
+
+.primary-button {
+    margin-top: 12px;
+
+    border: 0;
+
     background:
         var(--blue);
 
     color: #07111f;
-
-    font-weight: 850;
 }
 
-
 .secondary-button {
-    width: 100%;
-
     margin-top: 8px;
 
     border:
         1px solid
         var(--border);
 
-    border-radius: 14px;
-
-    padding:
-        12px
-        14px;
-
     background:
         transparent;
 
     color:
         var(--text);
+}
 
-    font-weight: 700;
+
+/* ==========================================================
+   V3 SECTOR MARKET
+   ========================================================== */
+
+.sector-summary-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            4,
+            minmax(
+                0,
+                1fr
+            )
+        );
+
+    gap: 8px;
+
+    margin-bottom: 18px;
+}
+
+.sector-summary-card {
+    min-width: 0;
+
+    padding:
+        13px
+        10px;
+
+    border-radius: 14px;
+
+    background:
+        var(--card);
+
+    border:
+        1px solid
+        var(--border);
+
+    text-align: center;
+}
+
+.sector-summary-label {
+    color:
+        var(--text-soft);
+
+    font-size: 10px;
+}
+
+.sector-summary-value {
+    margin-top: 5px;
+
+    font-size: 18px;
+
+    font-weight: 850;
+}
+
+.sector-filter-bar {
+    position: static;
+
+    top: auto;
+
+    z-index: auto;
+
+    margin-bottom: 10px;
+
+    padding-top: 0;
+}
+
+.sector-list {
+    display: flex;
+
+    flex-direction:
+        column;
+
+    gap: 9px;
+}
+
+.sector-card {
+    overflow: hidden;
+
+    border-radius: 16px;
+
+    background:
+        var(--card);
+
+    border:
+        1px solid
+        var(--border);
+}
+
+.sector-row {
+    display: grid;
+
+    grid-template-columns:
+        minmax(
+            0,
+            1fr
+        )
+        auto;
+
+    gap: 14px;
+
+    padding: 14px;
+
+    cursor: pointer;
+
+    transition:
+        background
+        0.15s ease;
+}
+
+.sector-row:hover {
+    background:
+        var(--card-2);
+}
+
+.sector-main {
+    min-width: 0;
+}
+
+.sector-title-row {
+    display: flex;
+
+    align-items: center;
+
+    flex-wrap: wrap;
+
+    gap: 7px;
+}
+
+.sector-name {
+    font-size: 15px;
+
+    font-weight: 850;
+}
+
+.sector-status {
+    display: inline-flex;
+
+    align-items: center;
+
+    padding:
+        4px
+        8px;
+
+    border-radius: 999px;
+
+    font-size: 10px;
+
+    font-weight: 800;
+}
+
+.sector-status-strong {
+    color:
+        var(--red);
+
+    background:
+        rgba(
+            255,
+            107,
+            120,
+            0.12
+        );
+}
+
+.sector-status-improving {
+    color:
+        var(--orange);
+
+    background:
+        rgba(
+            255,
+            177,
+            90,
+            0.12
+        );
+}
+
+.sector-status-neutral {
+    color:
+        var(--blue);
+
+    background:
+        rgba(
+            100,
+            168,
+            255,
+            0.12
+        );
+}
+
+.sector-status-weak {
+    color:
+        var(--green);
+
+    background:
+        rgba(
+            57,
+            217,
+            138,
+            0.12
+        );
+}
+
+.sector-status-waiting_data {
+    color:
+        var(--text-dim);
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.06
+        );
+}
+
+.sector-return-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            3,
+            minmax(
+                0,
+                1fr
+            )
+        );
+
+    gap: 6px;
+
+    margin-top: 11px;
+}
+
+.sector-return-item {
+    min-width: 0;
+
+    padding:
+        8px
+        9px;
+
+    border-radius: 10px;
+
+    background:
+        var(--bg-soft);
+
+    border:
+        1px solid
+        var(--border);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content:
+        space-between;
+
+    gap: 6px;
+
+    font-size: 10px;
+
+    color:
+        var(--text-soft);
+}
+
+.sector-return-item strong {
+    font-size: 11px;
+}
+
+.sector-stats,
+.sector-flow-row {
+    margin-top: 9px;
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap:
+        5px
+        12px;
+
+    font-size: 10px;
+}
+
+.sector-stats {
+    color:
+        var(--text-dim);
+}
+
+.sector-stats strong {
+    color:
+        var(--text);
+}
+
+.sector-flow-row {
+    color:
+        var(--text-soft);
+}
+
+.sector-flow-row strong {
+    margin-left: 3px;
+}
+
+.sector-side {
+    min-width: 82px;
+
+    text-align: right;
+}
+
+.sector-score {
+    font-size: 21px;
+
+    font-weight: 850;
+
+    color:
+        var(--blue);
+}
+
+.sector-expand {
+    margin-top: 10px;
+
+    color:
+        var(--text-dim);
+
+    font-size: 10px;
+}
+
+.sector-members {
+    display: none;
+
+    grid-template-columns:
+        repeat(
+            4,
+            minmax(
+                0,
+                1fr
+            )
+        );
+
+    gap: 6px;
+
+    padding:
+        10px
+        14px
+        14px;
+
+    border-top:
+        1px solid
+        var(--border);
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.015
+        );
+}
+
+.sector-members.open {
+    display: grid;
+}
+
+.sector-member-stock {
+    min-width: 0;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius: 10px;
+
+    padding:
+        9px
+        10px;
+
+    background:
+        var(--bg-soft);
+
+    color:
+        var(--text);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content:
+        space-between;
+
+    gap: 6px;
+
+    text-align: left;
+
+    font-size: 11px;
+}
+
+.sector-member-stock:hover:not(:disabled) {
+    border-color:
+        rgba(
+            100,
+            168,
+            255,
+            0.35
+        );
+
+    background:
+        var(--card-2);
+}
+
+.sector-member-stock:disabled {
+    cursor: default;
+
+    opacity: 0.58;
+}
+
+.sector-member-empty {
+    grid-column:
+        1 / -1;
+
+    padding: 12px;
+
+    color:
+        var(--text-dim);
+
+    text-align: center;
+
+    font-size: 11px;
 }
 
 
@@ -1842,23 +2033,17 @@ button {
    RESPONSIVE
    ========================================================== */
 
-
 @media (
     min-width: 760px
 ) {
-
     .page {
-        padding:
-            22px;
+        padding: 22px;
     }
-
 }
-
 
 @media (
     max-width: 700px
 ) {
-
     .score-summary-grid {
         grid-template-columns:
             repeat(
@@ -1870,13 +2055,11 @@ button {
             );
     }
 
-
     .score-summary-grid
     .summary-metric:first-child {
         grid-column:
             1 / -1;
     }
-
 
     .stage-summary-grid {
         grid-template-columns:
@@ -1889,19 +2072,37 @@ button {
             );
     }
 
-
     .feature-grid {
         grid-template-columns:
             1fr;
     }
 
-}
+    .sector-summary-grid {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(
+                    0,
+                    1fr
+                )
+            );
+    }
 
+    .sector-members {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(
+                    0,
+                    1fr
+                )
+            );
+    }
+}
 
 @media (
     max-width: 420px
 ) {
-
     .score-grid-4 {
         grid-template-columns:
             repeat(
@@ -1910,14 +2111,11 @@ button {
             );
     }
 
-
     .stock-row {
         gap: 8px;
 
-        padding:
-            12px;
+        padding: 12px;
     }
-
 
     .score-inline,
     .holding-metrics {
@@ -1926,4 +2124,23 @@ button {
             8px;
     }
 
+    .sector-row {
+        gap: 8px;
+
+        padding: 12px;
+    }
+
+    .sector-return-grid {
+        grid-template-columns:
+            1fr;
+    }
+
+    .sector-side {
+        min-width: 65px;
+    }
+
+    .sector-members {
+        grid-template-columns:
+            1fr;
+    }
 }

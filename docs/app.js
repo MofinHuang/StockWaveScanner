@@ -1,65 +1,37 @@
 "use strict";
 
-
-const DATA_FILE =
-    "./data/latest/v3_ui.json";
-
-const WATCHLIST_KEY =
-    "stockwavescanner.v3.watchlist";
-
+const DATA_FILE = "./data/latest/v3_ui.json";
+const SECTOR_FILE = "./data/latest/sectors.json";
+const WATCHLIST_KEY = "stockwavescanner.v3.watchlist";
 
 const state = {
-
     ui: null,
-
-    market: null,
-
+    market: {},
     researchPriority: [],
-
     actionPriority: [],
-
     stocks: [],
-
     stockMap: new Map(),
-
+    sectorData: null,
+    sectors: [],
     currentPage: "home",
 };
 
+document.addEventListener("DOMContentLoaded", async () => {
+    bindNavigation();
+    bindDetailOverlay();
+    await loadData();
+    renderAll();
+});
 
-document.addEventListener(
-    "DOMContentLoaded",
-    async () => {
-
-        bindNavigation();
-
-        bindDetailOverlay();
-
-        await loadData();
-
-        renderAll();
-    }
-);
-
-
-// ============================================================
-// LOAD
-// ============================================================
-
-
-async function loadJson(
-    url
-) {
-
-    const response =
-        await fetch(
-            `${url}?t=${Date.now()}`,
-            {
-                cache: "no-store",
-            }
-        );
+async function loadJson(url) {
+    const response = await fetch(
+        `${url}?t=${Date.now()}`,
+        {
+            cache: "no-store",
+        }
+    );
 
     if (!response.ok) {
-
         throw new Error(
             `HTTP ${response.status}`
         );
@@ -68,36 +40,43 @@ async function loadJson(
     return await response.json();
 }
 
-
 async function loadData() {
-
     try {
+        const payload = await loadJson(
+            DATA_FILE
+        );
 
-        const payload =
-            await loadJson(
-                DATA_FILE
+        let sectorPayload = null;
+
+        try {
+            sectorPayload = await loadJson(
+                SECTOR_FILE
             );
+        }
+        catch (error) {
+            console.warn(
+                "Sector data unavailable",
+                error
+            );
+        }
 
-        state.ui =
-            payload;
+        state.ui = payload;
 
         state.market =
-            payload.market || {};
+            payload.market
+            || {};
 
         state.researchPriority =
-            payload
-                .research_priority
-                ?.rows
+            payload.research_priority?.rows
             || [];
 
         state.actionPriority =
-            payload
-                .action_priority
-                ?.rows
+            payload.action_priority?.rows
             || [];
 
         state.stocks =
-            payload.stocks || [];
+            payload.stocks
+            || [];
 
         state.stockMap =
             new Map(
@@ -111,6 +90,13 @@ async function loadData() {
                 )
             );
 
+        state.sectorData =
+            sectorPayload;
+
+        state.sectors =
+            sectorPayload?.sectors
+            || [];
+
         document
             .getElementById(
                 "headerStatus"
@@ -118,10 +104,8 @@ async function loadData() {
             .textContent =
                 payload.data_date
                 || "READY";
-
     }
     catch (error) {
-
         console.error(
             error
         );
@@ -139,18 +123,17 @@ async function loadData() {
     }
 }
 
-
-function renderLoadError(
-    error
-) {
-
+function renderLoadError(error) {
     const page =
         document.getElementById(
             "page-home"
         );
 
-    page.innerHTML = `
+    if (!page) {
+        return;
+    }
 
+    page.innerHTML = `
         <div class="empty-state">
 
             <div class="empty-icon">
@@ -171,14 +154,7 @@ function renderLoadError(
     `;
 }
 
-
-// ============================================================
-// NAVIGATION
-// ============================================================
-
-
 function bindNavigation() {
-
     document
         .querySelectorAll(
             ".nav-item"
@@ -189,7 +165,6 @@ function bindNavigation() {
                 button.addEventListener(
                     "click",
                     () => {
-
                         switchPage(
                             button.dataset.page
                         );
@@ -199,11 +174,7 @@ function bindNavigation() {
         );
 }
 
-
-function switchPage(
-    page
-) {
-
+function switchPage(page) {
     state.currentPage =
         page;
 
@@ -213,7 +184,6 @@ function switchPage(
         )
         .forEach(
             element => {
-
                 element.classList.remove(
                     "active"
                 );
@@ -226,7 +196,6 @@ function switchPage(
         )
         .forEach(
             element => {
-
                 element.classList.remove(
                     "active"
                 );
@@ -241,14 +210,12 @@ function switchPage(
             "active"
         );
 
-
     let mainPage =
         page;
 
     if (
         page === "research"
     ) {
-
         mainPage =
             "top10";
     }
@@ -258,7 +225,6 @@ function switchPage(
         ||
         page === "holdings"
     ) {
-
         mainPage =
             "my";
     }
@@ -271,16 +237,13 @@ function switchPage(
             "active"
         );
 
-
     if (
         page === "research"
     ) {
-
         renderResearch();
 
         setTimeout(
             () => {
-
                 document
                     .getElementById(
                         "stockSearch"
@@ -291,43 +254,35 @@ function switchPage(
         );
     }
 
-
     if (
         page === "watchlist"
     ) {
-
         renderWatchlist();
     }
-
 
     if (
         page === "holdings"
     ) {
-
         renderHoldings();
     }
-
 
     if (
         page === "my"
     ) {
-
         renderMy();
+    }
+
+    if (
+        page === "market"
+    ) {
+        renderMarket();
     }
 }
 
-
-// ============================================================
-// RENDER ALL
-// ============================================================
-
-
 function renderAll() {
-
     if (
         !state.ui
     ) {
-
         return;
     }
 
@@ -346,18 +301,15 @@ function renderAll() {
     renderHoldings();
 }
 
-
-// ============================================================
-// HOME
-// ============================================================
-
-
 function renderHome() {
-
     const page =
         document.getElementById(
             "page-home"
         );
+
+    if (!page) {
+        return;
+    }
 
     const regime =
         state.market?.regime
@@ -392,7 +344,6 @@ function renderHome() {
             0,
             10
         );
-
 
     page.innerHTML = `
 
@@ -621,18 +572,15 @@ function renderHome() {
         </div>
     `;
 
-
     bindStockRows(
         page
     );
 }
 
-
 function marketIndexCard(
     title,
     item
 ) {
-
     return `
 
         <div class="card metric-card">
@@ -676,13 +624,11 @@ function marketIndexCard(
     `;
 }
 
-
 function summaryMetric(
     label,
     value,
     suffix
 ) {
-
     return `
 
         <div class="summary-metric">
@@ -694,29 +640,34 @@ function summaryMetric(
             </div>
 
             <div class="summary-metric-value">
+
                 ${formatNumber(
                     value,
                     value === null
-                    || value === undefined
-                    ? 0
-                    : 1
+                    ||
+                    value === undefined
+                    ?
+                    0
+                    :
+                    1
                 )}
+
                 ${escapeHtml(
-                    suffix || ""
+                    suffix
+                    || ""
                 )}
+
             </div>
 
         </div>
     `;
 }
 
-
 function stageSummaryBox(
     code,
     label,
     count
 ) {
-
     return `
 
         <div class="
@@ -728,7 +679,8 @@ function stageSummaryBox(
 
             <div class="stage-summary-count">
                 ${formatInteger(
-                    count || 0
+                    count
+                    || 0
                 )}
             </div>
 
@@ -742,22 +694,18 @@ function stageSummaryBox(
     `;
 }
 
-
-// ============================================================
-// RANKING
-// ============================================================
-
-
 function renderTop10() {
-
     const page =
         document.getElementById(
             "page-top10"
         );
 
+    if (!page) {
+        return;
+    }
+
     const rows =
         state.researchPriority;
-
 
     page.innerHTML = `
 
@@ -837,7 +785,6 @@ function renderTop10() {
         </div>
     `;
 
-
     document
         .getElementById(
             "openResearch"
@@ -845,37 +792,38 @@ function renderTop10() {
         ?.addEventListener(
             "click",
             () => {
-
                 switchPage(
                     "research"
                 );
             }
         );
 
-
     bindStockRows(
         page
     );
 }
 
-
-// ============================================================
-// MARKET
-// ============================================================
-
-
 function renderMarket() {
-
     const page =
         document.getElementById(
             "page-market"
         );
 
     if (!page) {
-
         return;
     }
 
+    const summary =
+        state.sectorData?.summary
+        || {};
+
+    const distribution =
+        summary.status_distribution
+        || {};
+
+    const sectors =
+        state.sectors
+        || [];
 
     page.innerHTML = `
 
@@ -886,8 +834,153 @@ function renderMarket() {
             </div>
 
             <div class="page-intro-description">
-                個股評分回答股票本身；
-                市場觀察則用來理解資金、產業與專業研究方向。
+                族群頁用來觀察目前市場資金偏好的產業方向，
+                不直接影響個股 Overall 評分。
+            </div>
+
+        </div>
+
+
+        ${
+            sectors.length
+
+            ?
+
+            `
+
+            <div class="sector-summary-grid">
+
+                ${sectorSummaryMetric(
+                    "產業族群",
+                    summary.sector_count
+                    ?? sectors.length,
+                    "個"
+                )}
+
+                ${sectorSummaryMetric(
+                    "強勢",
+                    distribution.STRONG
+                    || 0,
+                    "個"
+                )}
+
+                ${sectorSummaryMetric(
+                    "轉強",
+                    distribution.IMPROVING
+                    || 0,
+                    "個"
+                )}
+
+                ${sectorSummaryMetric(
+                    "資料日",
+                    state.sectorData?.data_date
+                    || "--",
+                    ""
+                )}
+
+            </div>
+
+
+            <div class="section-header">
+
+                <div>
+
+                    <div class="section-title no-margin">
+                        族群資金
+                    </div>
+
+                    <div class="section-subtitle">
+                        技術強度、族群廣度、法人與大戶變化
+                    </div>
+
+                </div>
+
+                <div class="section-count">
+                    ${sectors.length} 個族群
+                </div>
+
+            </div>
+
+
+            <div
+                id="sectorPeriodFilters"
+                class="filter-bar sector-filter-bar"
+            >
+
+                <button
+                    class="filter-button active"
+                    data-sector-period="strength"
+                >
+                    綜合強度
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-sector-period="1d"
+                >
+                    當日
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-sector-period="5d"
+                >
+                    5 日
+                </button>
+
+                <button
+                    class="filter-button"
+                    data-sector-period="20d"
+                >
+                    20 日
+                </button>
+
+            </div>
+
+
+            <div
+                id="sectorList"
+                class="sector-list"
+            ></div>
+
+            `
+
+            :
+
+            `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    ◉
+                </div>
+
+                <div>
+                    族群資料尚未發布
+                </div>
+
+                <div class="metric-sub">
+                    等待 sectors.json 產生後即可顯示。
+                </div>
+
+            </div>
+
+            `
+        }
+
+
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    其他市場觀察
+                </div>
+
+                <div class="section-subtitle">
+                    後續 Domain 依序接入
+                </div>
+
             </div>
 
         </div>
@@ -896,19 +989,11 @@ function renderMarket() {
         <div class="feature-grid">
 
             ${featureCardHtml(
-                "◉",
-                "族群資金",
-                "觀察市場資金目前偏好的產業、次產業與題材。",
-                "當日・當週・當月",
-                "下一階段建置"
-            )}
-
-            ${featureCardHtml(
                 "◇",
                 "分析師觀點",
                 "整理近期分析師研究的股票、族群與主要分析面向。",
                 "當日・近3日・近7日・近30日",
-                "下一階段建置"
+                "待建置"
             )}
 
             ${featureCardHtml(
@@ -916,7 +1001,7 @@ function renderMarket() {
                 "ETF 持股異動",
                 "追蹤指定 ETF 最近新進、加碼、減碼與剔除哪些股票。",
                 "當日・近5日・近20日",
-                "下一階段建置"
+                "待建置"
             )}
 
             ${featureCardHtml(
@@ -924,13 +1009,615 @@ function renderMarket() {
                 "金控股觀察",
                 "使用金融業專屬 KPI，觀察獲利、股息、法人與金融環境。",
                 "金融股專屬觀察",
-                "下一階段建置"
+                "待建置"
             )}
+
+        </div>
+    `;
+
+    document
+        .querySelectorAll(
+            "#sectorPeriodFilters .filter-button"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        document
+                            .querySelectorAll(
+                                "#sectorPeriodFilters .filter-button"
+                            )
+                            .forEach(
+                                item => {
+                                    item.classList.remove(
+                                        "active"
+                                    );
+                                }
+                            );
+
+                        button.classList.add(
+                            "active"
+                        );
+
+                        renderSectorList(
+                            button.dataset.sectorPeriod
+                            || "strength"
+                        );
+                    }
+                );
+            }
+        );
+
+    if (
+        sectors.length
+    ) {
+        renderSectorList(
+            "strength"
+        );
+    }
+}
+
+function sectorSummaryMetric(
+    label,
+    value,
+    suffix
+) {
+    return `
+
+        <div class="sector-summary-card">
+
+            <div class="sector-summary-label">
+                ${escapeHtml(
+                    label
+                )}
+            </div>
+
+            <div class="sector-summary-value">
+
+                ${escapeHtml(
+                    String(
+                        value
+                        ?? "--"
+                    )
+                )}
+
+                ${escapeHtml(
+                    suffix
+                    || ""
+                )}
+
+            </div>
 
         </div>
     `;
 }
 
+function renderSectorList(
+    period = "strength"
+) {
+    const container =
+        document.getElementById(
+            "sectorList"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const rows =
+        [...state.sectors];
+
+    rows.sort(
+        (
+            a,
+            b
+        ) => {
+
+            if (
+                period === "1d"
+            ) {
+                return (
+                    Number(
+                        b.returns
+                            ?.return_1d_pct
+                        ?? -999
+                    )
+                    -
+                    Number(
+                        a.returns
+                            ?.return_1d_pct
+                        ?? -999
+                    )
+                );
+            }
+
+            if (
+                period === "5d"
+            ) {
+                return (
+                    Number(
+                        b.returns
+                            ?.return_5d_pct
+                        ?? -999
+                    )
+                    -
+                    Number(
+                        a.returns
+                            ?.return_5d_pct
+                        ?? -999
+                    )
+                );
+            }
+
+            if (
+                period === "20d"
+            ) {
+                return (
+                    Number(
+                        b.returns
+                            ?.return_20d_pct
+                        ?? -999
+                    )
+                    -
+                    Number(
+                        a.returns
+                            ?.return_20d_pct
+                        ?? -999
+                    )
+                );
+            }
+
+            return (
+                Number(
+                    b.technical_score
+                    ?? -999
+                )
+                -
+                Number(
+                    a.technical_score
+                    ?? -999
+                )
+            );
+        }
+    );
+
+    container.innerHTML =
+        rows
+            .map(
+                (
+                    sector,
+                    index
+                ) =>
+                    sectorRowHtml(
+                        sector,
+                        index + 1
+                    )
+            )
+            .join("");
+
+    container
+        .querySelectorAll(
+            ".sector-row"
+        )
+        .forEach(
+            element => {
+
+                element.addEventListener(
+                    "click",
+                    event => {
+
+                        if (
+                            event.target.closest(
+                                ".sector-member-stock"
+                            )
+                        ) {
+                            return;
+                        }
+
+                        toggleSectorMembers(
+                            element.dataset.sectorId
+                        );
+                    }
+                );
+            }
+        );
+
+    container
+        .querySelectorAll(
+            ".sector-member-stock"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    event => {
+
+                        event.stopPropagation();
+
+                        const stockId =
+                            button.dataset.stockId;
+
+                        if (
+                            state.stockMap.has(
+                                String(
+                                    stockId
+                                )
+                            )
+                        ) {
+                            showStockDetail(
+                                stockId
+                            );
+                        }
+                    }
+                );
+            }
+        );
+}
+
+function sectorRowHtml(
+    sector,
+    rank
+) {
+    const returns =
+        sector.returns
+        || {};
+
+    const institutional =
+        sector.institutional
+        || {};
+
+    const members =
+        sector.members
+        || [];
+
+    return `
+
+        <div class="sector-card">
+
+            <div
+                class="sector-row"
+                data-sector-id="${escapeHtml(
+                    sector.sector_id
+                )}"
+            >
+
+                <div class="sector-main">
+
+                    <div class="sector-title-row">
+
+                        <span class="rank-badge">
+                            #${rank}
+                        </span>
+
+                        <span class="sector-name">
+                            ${escapeHtml(
+                                sector.sector_name
+                                || "--"
+                            )}
+                        </span>
+
+                        ${sectorStatusBadge(
+                            sector.status
+                        )}
+
+                    </div>
+
+
+                    <div class="sector-return-grid">
+
+                        ${sectorReturnMetric(
+                            "當日",
+                            returns.return_1d_pct
+                        )}
+
+                        ${sectorReturnMetric(
+                            "5日",
+                            returns.return_5d_pct
+                        )}
+
+                        ${sectorReturnMetric(
+                            "20日",
+                            returns.return_20d_pct
+                        )}
+
+                    </div>
+
+
+                    <div class="sector-stats">
+
+                        <span>
+                            強度
+                            <strong>
+                                ${formatNumber(
+                                    sector.technical_score,
+                                    1
+                                )}
+                            </strong>
+                        </span>
+
+                        <span>
+                            廣度
+                            ${formatNumber(
+                                sector.breadth_score,
+                                1
+                            )}
+                        </span>
+
+                        <span>
+                            上漲
+                            ${formatMaybePercent(
+                                sector.up_ratio_pct,
+                                0
+                            )}
+                        </span>
+
+                        <span>
+                            MA20上
+                            ${formatMaybePercent(
+                                sector.above_ma20_ratio_pct,
+                                0
+                            )}
+                        </span>
+
+                        <span>
+                            新高
+                            ${formatInteger(
+                                sector.new_high_count
+                            )}
+                        </span>
+
+                    </div>
+
+
+                    <div class="sector-flow-row">
+
+                        <span>
+                            外資
+                            <strong class="${changeClass(
+                                institutional.foreign_net
+                            )}">
+                                ${formatSignedInteger(
+                                    institutional.foreign_net
+                                )}
+                            </strong>
+                        </span>
+
+                        <span>
+                            投信
+                            <strong class="${changeClass(
+                                institutional.trust_net
+                            )}">
+                                ${formatSignedInteger(
+                                    institutional.trust_net
+                                )}
+                            </strong>
+                        </span>
+
+                        <span>
+                            自營
+                            <strong class="${changeClass(
+                                institutional.dealer_net
+                            )}">
+                                ${formatSignedInteger(
+                                    institutional.dealer_net
+                                )}
+                            </strong>
+                        </span>
+
+                        <span>
+                            大戶
+                            <strong class="${changeClass(
+                                sector.large_holder_change
+                            )}">
+                                ${formatSignedNumber(
+                                    sector.large_holder_change,
+                                    4
+                                )}
+                            </strong>
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="sector-side">
+
+                    <div class="sector-score">
+                        ${formatNumber(
+                            sector.technical_score,
+                            1
+                        )}
+                    </div>
+
+                    <div class="metric-sub">
+                        ${formatInteger(
+                            sector.stock_count
+                        )}
+                        檔
+                    </div>
+
+                    <div class="sector-expand">
+                        成分股 ${members.length} ▼
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="sector-members-${escapeHtml(
+                    safeDomId(
+                        sector.sector_id
+                    )
+                )}"
+                class="sector-members"
+            >
+
+                ${
+                    members.length
+
+                    ?
+
+                    members
+                        .map(
+                            member => {
+
+                                const exists =
+                                    state.stockMap.has(
+                                        String(
+                                            member.stock_id
+                                        )
+                                    );
+
+                                return `
+
+                                    <button
+                                        class="sector-member-stock"
+                                        data-stock-id="${escapeHtml(
+                                            member.stock_id
+                                        )}"
+                                        ${exists ? "" : "disabled"}
+                                    >
+
+                                        <span>
+                                            ${escapeHtml(
+                                                member.short_name
+                                                || "--"
+                                            )}
+                                        </span>
+
+                                        <span class="stock-code">
+                                            ${escapeHtml(
+                                                member.stock_id
+                                            )}
+                                        </span>
+
+                                    </button>
+                                `;
+                            }
+                        )
+                        .join("")
+
+                    :
+
+                    `
+                    <div class="sector-member-empty">
+                        尚無成分股資料
+                    </div>
+                    `
+                }
+
+            </div>
+
+        </div>
+    `;
+}
+
+function sectorReturnMetric(
+    label,
+    value
+) {
+    return `
+
+        <div class="sector-return-item">
+
+            <span>
+                ${escapeHtml(
+                    label
+                )}
+            </span>
+
+            <strong class="${changeClass(
+                value
+            )}">
+                ${formatPercent(
+                    value
+                )}
+            </strong>
+
+        </div>
+    `;
+}
+
+function sectorStatusBadge(
+    status
+) {
+    const normalized =
+        String(
+            status
+            || "WAITING_DATA"
+        )
+        .toUpperCase();
+
+    const labels = {
+
+        STRONG:
+            "強勢",
+
+        IMPROVING:
+            "轉強",
+
+        NEUTRAL:
+            "中性",
+
+        WEAK:
+            "偏弱",
+
+        WAITING_DATA:
+            "資料補齊中",
+    };
+
+    return `
+
+        <span class="
+            sector-status
+            sector-status-${escapeHtml(
+                normalized.toLowerCase()
+            )}
+        ">
+            ${escapeHtml(
+                labels[
+                    normalized
+                ]
+                || normalized
+            )}
+        </span>
+    `;
+}
+
+function toggleSectorMembers(
+    sectorId
+) {
+    document
+        .getElementById(
+            `sector-members-${safeDomId(
+                sectorId
+            )}`
+        )
+        ?.classList
+        .toggle(
+            "open"
+        );
+}
+
+function safeDomId(
+    value
+) {
+    return String(
+        value
+        ?? ""
+    )
+    .replace(
+        /[^a-zA-Z0-9_-]/g,
+        "_"
+    );
+}
 
 function featureCardHtml(
     icon,
@@ -939,7 +1626,6 @@ function featureCardHtml(
     meta,
     status
 ) {
-
     return `
 
         <div class="feature-card">
@@ -978,24 +1664,15 @@ function featureCardHtml(
     `;
 }
 
-
-// ============================================================
-// MY
-// ============================================================
-
-
 function renderMy() {
-
     const page =
         document.getElementById(
             "page-my"
         );
 
     if (!page) {
-
         return;
     }
-
 
     const watchlist =
         getWatchlist();
@@ -1020,7 +1697,6 @@ function renderMy() {
                     ) > 0
             )
             .length;
-
 
     page.innerHTML = `
 
@@ -1097,7 +1773,6 @@ function renderMy() {
         </div>
     `;
 
-
     document
         .getElementById(
             "openWatchlist"
@@ -1105,13 +1780,11 @@ function renderMy() {
         ?.addEventListener(
             "click",
             () => {
-
                 switchPage(
                     "watchlist"
                 );
             }
         );
-
 
     document
         .getElementById(
@@ -1120,7 +1793,6 @@ function renderMy() {
         ?.addEventListener(
             "click",
             () => {
-
                 switchPage(
                     "holdings"
                 );
@@ -1128,24 +1800,15 @@ function renderMy() {
         );
 }
 
-
-// ============================================================
-// RESEARCH
-// ============================================================
-
-
 function renderResearch() {
-
     const page =
         document.getElementById(
             "page-research"
         );
 
     if (!page) {
-
         return;
     }
-
 
     page.innerHTML = `
 
@@ -1237,7 +1900,6 @@ function renderResearch() {
         ></div>
     `;
 
-
     document
         .getElementById(
             "backToRanking"
@@ -1245,28 +1907,20 @@ function renderResearch() {
         ?.addEventListener(
             "click",
             () => {
-
                 switchPage(
                     "top10"
                 );
             }
         );
 
-
-    const input =
-        document.getElementById(
+    document
+        .getElementById(
             "stockSearch"
-        );
-
-    input
+        )
         ?.addEventListener(
             "input",
-            () => {
-
-                renderResearchList();
-            }
+            renderResearchList
         );
-
 
     document
         .querySelectorAll(
@@ -1284,10 +1938,11 @@ function renderResearch() {
                                 "#researchFilters .filter-button"
                             )
                             .forEach(
-                                item =>
+                                item => {
                                     item.classList.remove(
                                         "active"
-                                    )
+                                    );
+                                }
                             );
 
                         button.classList.add(
@@ -1300,37 +1955,30 @@ function renderResearch() {
             }
         );
 
-
     renderResearchList();
 }
 
-
 function renderResearchList() {
-
     const container =
         document.getElementById(
             "researchList"
         );
 
     if (!container) {
-
         return;
     }
 
-
-    const input =
-        document.getElementById(
-            "stockSearch"
-        );
-
     const query =
         String(
-            input?.value
+            document
+                .getElementById(
+                    "stockSearch"
+                )
+                ?.value
             || ""
         )
         .trim()
         .toLowerCase();
-
 
     const stageFilter =
         document
@@ -1341,27 +1989,20 @@ function renderResearchList() {
             ?.stage
         || "ALL";
 
-
     let rows =
         [...state.stocks];
 
-
-    if (query) {
-
+    if (
+        query
+    ) {
         rows =
             rows.filter(
-                stock => {
-
-                    const searchable = [
-
+                stock =>
+                    [
                         stock.stock_id,
-
                         stock.short_name,
-
                         stock.industry_name,
-
                         stock.market,
-
                     ]
                     .filter(
                         Boolean
@@ -1369,56 +2010,39 @@ function renderResearchList() {
                     .join(
                         " "
                     )
-                    .toLowerCase();
-
-                    return searchable.includes(
+                    .toLowerCase()
+                    .includes(
                         query
-                    );
-                }
+                    )
             );
     }
-
 
     if (
         stageFilter !== "ALL"
     ) {
-
         rows =
             rows.filter(
                 stock =>
                     stock.stage?.code
-                    ===
-                    stageFilter
+                    === stageFilter
             );
     }
-
 
     rows.sort(
         (
             a,
             b
-        ) => {
-
-            const aOverall =
-                Number(
-                    a.score?.overall
-                    ?? -999
-                );
-
-            const bOverall =
-                Number(
-                    b.score?.overall
-                    ?? -999
-                );
-
-            return (
-                bOverall
-                -
-                aOverall
-            );
-        }
+        ) =>
+            Number(
+                b.score?.overall
+                ?? -999
+            )
+            -
+            Number(
+                a.score?.overall
+                ?? -999
+            )
     );
-
 
     rows =
         rows.slice(
@@ -1426,9 +2050,9 @@ function renderResearchList() {
             150
         );
 
-
-    if (!rows.length) {
-
+    if (
+        !rows.length
+    ) {
         container.innerHTML = `
 
             <div class="empty-state">
@@ -1439,7 +2063,6 @@ function renderResearchList() {
         return;
     }
 
-
     container.innerHTML =
         rows
             .map(
@@ -1448,28 +2071,18 @@ function renderResearchList() {
                         stock
                     )
             )
-            .join(
-                ""
-            );
-
+            .join("");
 
     bindStockRows(
         container
     );
 }
 
-
-// ============================================================
-// STOCK ROW
-// ============================================================
-
-
 function stockRowHtml(
     stock,
     rank = null,
     showAction = false
 ) {
-
     const price =
         stock.price
         || {};
@@ -1481,7 +2094,6 @@ function stockRowHtml(
     const stage =
         stock.stage
         || {};
-
 
     return `
 
@@ -1627,14 +2239,12 @@ function stockRowHtml(
                     )}
                 </div>
 
-                <div
-                    class="
-                        stock-change
-                        ${changeClass(
-                            price.change_pct
-                        )}
-                    "
-                >
+                <div class="
+                    stock-change
+                    ${changeClass(
+                        price.change_pct
+                    )}
+                ">
                     ${formatPercent(
                         price.change_pct
                     )}
@@ -1646,11 +2256,9 @@ function stockRowHtml(
     `;
 }
 
-
 function bindStockRows(
     root
 ) {
-
     root
         ?.querySelectorAll(
             ".stock-row"
@@ -1661,7 +2269,6 @@ function bindStockRows(
                 element.addEventListener(
                     "click",
                     () => {
-
                         showStockDetail(
                             element.dataset.stockId
                         );
@@ -1671,24 +2278,15 @@ function bindStockRows(
         );
 }
 
-
-// ============================================================
-// WATCHLIST
-// ============================================================
-
-
 function renderWatchlist() {
-
     const page =
         document.getElementById(
             "page-watchlist"
         );
 
     if (!page) {
-
         return;
     }
-
 
     const watchlist =
         getWatchlist();
@@ -1710,9 +2308,9 @@ function renderWatchlist() {
                 Boolean
             );
 
-
-    if (!rows.length) {
-
+    if (
+        !rows.length
+    ) {
         page.innerHTML = `
 
             <div class="page-back-row">
@@ -1726,9 +2324,11 @@ function renderWatchlist() {
 
             </div>
 
+
             <div class="section-title">
                 Watchlist
             </div>
+
 
             <div class="empty-state">
 
@@ -1754,7 +2354,6 @@ function renderWatchlist() {
         return;
     }
 
-
     rows.sort(
         (
             a,
@@ -1770,7 +2369,6 @@ function renderWatchlist() {
                 ?? 0
             )
     );
-
 
     page.innerHTML = `
 
@@ -1813,52 +2411,35 @@ function renderWatchlist() {
                                 stock
                             )
                     )
-                    .join(
-                        ""
-                    )
+                    .join("")
             }
 
         </div>
     `;
 
-
     bindBackToMy(
         "backFromWatchlist"
     );
-
 
     bindStockRows(
         page
     );
 }
 
-
-// ============================================================
-// HOLDINGS
-// ============================================================
-
-
 function renderHoldings() {
-
     const page =
         document.getElementById(
             "page-holdings"
         );
 
     if (!page) {
-
         return;
     }
-
-
-    const watchlist =
-        getWatchlist();
-
 
     const rows =
         Object
             .values(
-                watchlist
+                getWatchlist()
             )
             .filter(
                 item =>
@@ -1869,7 +2450,6 @@ function renderHoldings() {
             )
             .map(
                 item => ({
-
                     position:
                         item,
 
@@ -1888,9 +2468,9 @@ function renderHoldings() {
                     )
             );
 
-
-    if (!rows.length) {
-
+    if (
+        !rows.length
+    ) {
         page.innerHTML = `
 
             <div class="page-back-row">
@@ -1904,9 +2484,11 @@ function renderHoldings() {
 
             </div>
 
+
             <div class="section-title">
                 Holdings
             </div>
+
 
             <div class="empty-state">
 
@@ -1926,14 +2508,12 @@ function renderHoldings() {
             </div>
         `;
 
-
         bindBackToMy(
             "backFromHoldings"
         );
 
         return;
     }
-
 
     rows.sort(
         (
@@ -1950,7 +2530,6 @@ function renderHoldings() {
                 ?? 0
             )
     );
-
 
     page.innerHTML = `
 
@@ -1994,30 +2573,24 @@ function renderHoldings() {
                                 item.position
                             )
                     )
-                    .join(
-                        ""
-                    )
+                    .join("")
             }
 
         </div>
     `;
 
-
     bindBackToMy(
         "backFromHoldings"
     );
-
 
     bindStockRows(
         page
     );
 }
 
-
 function bindBackToMy(
     buttonId
 ) {
-
     document
         .getElementById(
             buttonId
@@ -2025,7 +2598,6 @@ function bindBackToMy(
         ?.addEventListener(
             "click",
             () => {
-
                 switchPage(
                     "my"
                 );
@@ -2033,12 +2605,10 @@ function bindBackToMy(
         );
 }
 
-
 function holdingRowHtml(
     stock,
     position
 ) {
-
     const shares =
         Number(
             position.shares
@@ -2075,16 +2645,13 @@ function holdingRowHtml(
     const returnPct =
         cost > 0
         ?
-        (
-            pnl
-            /
-            cost
-            *
-            100
-        )
+        pnl
+        /
+        cost
+        *
+        100
         :
         0;
-
 
     return `
 
@@ -2149,11 +2716,9 @@ function holdingRowHtml(
                         )}
                     </span>
 
-                    <span
-                        class="${changeClass(
-                            returnPct
-                        )}"
-                    >
+                    <span class="${changeClass(
+                        returnPct
+                    )}">
                         ${formatPercent(
                             returnPct
                         )}
@@ -2186,16 +2751,9 @@ function holdingRowHtml(
     `;
 }
 
-
-// ============================================================
-// STOCK DETAIL
-// ============================================================
-
-
 function showStockDetail(
     stockId
 ) {
-
     const stock =
         state.stockMap.get(
             String(
@@ -2204,10 +2762,8 @@ function showStockDetail(
         );
 
     if (!stock) {
-
         return;
     }
-
 
     const overlay =
         document.getElementById(
@@ -2218,7 +2774,6 @@ function showStockDetail(
         document.getElementById(
             "detailContent"
         );
-
 
     const price =
         stock.price
@@ -2255,7 +2810,6 @@ function showStockDetail(
                 stockId
             ]
         );
-
 
     container.innerHTML = `
 
@@ -2327,14 +2881,12 @@ function showStockDetail(
                     )}
                 </div>
 
-                <div
-                    class="
-                        metric-sub
-                        ${changeClass(
-                            price.change_pct
-                        )}
-                    "
-                >
+                <div class="
+                    metric-sub
+                    ${changeClass(
+                        price.change_pct
+                    )}
+                ">
                     ${formatPercent(
                         price.change_pct
                     )}
@@ -2586,7 +3138,6 @@ function showStockDetail(
                 id="saveWatchlist"
                 class="primary-button"
             >
-
                 ${
                     isWatching
                     ?
@@ -2594,7 +3145,6 @@ function showStockDetail(
                     :
                     "加入自選股票"
                 }
-
             </button>
 
 
@@ -2620,7 +3170,6 @@ function showStockDetail(
         </div>
     `;
 
-
     document
         .getElementById(
             "detailClose"
@@ -2630,7 +3179,6 @@ function showStockDetail(
             hideStockDetail
         );
 
-
     document
         .getElementById(
             "saveWatchlist"
@@ -2638,13 +3186,11 @@ function showStockDetail(
         ?.addEventListener(
             "click",
             () => {
-
                 saveWatchlistPosition(
                     stock
                 );
             }
         );
-
 
     document
         .getElementById(
@@ -2668,15 +3214,12 @@ function showStockDetail(
             }
         );
 
-
     overlay.classList.add(
         "open"
     );
 }
 
-
 function bindDetailOverlay() {
-
     const overlay =
         document.getElementById(
             "detailOverlay"
@@ -2689,19 +3232,15 @@ function bindDetailOverlay() {
 
                 if (
                     event.target
-                    ===
-                    overlay
+                    === overlay
                 ) {
-
                     hideStockDetail();
                 }
             }
         );
 }
 
-
 function hideStockDetail() {
-
     document
         .getElementById(
             "detailOverlay"
@@ -2711,18 +3250,11 @@ function hideStockDetail() {
         );
 }
 
-
-// ============================================================
-// UI HELPERS
-// ============================================================
-
-
 function scoreBox(
     name,
     value,
     primary = false
 ) {
-
     return `
 
         <div class="
@@ -2761,12 +3293,10 @@ function scoreBox(
     `;
 }
 
-
 function keyValue(
     label,
     value
 ) {
-
     return `
 
         <div class="key-value">
@@ -2790,12 +3320,10 @@ function keyValue(
     `;
 }
 
-
 function stageBadge(
     code,
     label
 ) {
-
     const normalized =
         String(
             code
@@ -2819,11 +3347,9 @@ function stageBadge(
     `;
 }
 
-
 function statusBadge(
     status
 ) {
-
     const normalized =
         String(
             status
@@ -2831,29 +3357,22 @@ function statusBadge(
         )
         .toUpperCase();
 
-
-    if (
-        normalized === "READY"
-        ||
-        normalized === "SUCCESS"
-        ||
-        normalized === "STORED"
-    ) {
-
-        return `
-
-            <span class="badge badge-ready">
-                ${escapeHtml(
-                    normalized
-                )}
-            </span>
-        `;
-    }
-
+    const ready =
+        [
+            "READY",
+            "SUCCESS",
+            "STORED",
+        ]
+        .includes(
+            normalized
+        );
 
     return `
 
-        <span class="badge badge-wait">
+        <span class="
+            badge
+            ${ready ? "badge-ready" : "badge-wait"}
+        ">
             ${escapeHtml(
                 normalized
                 || "WAIT"
@@ -2862,45 +3381,32 @@ function statusBadge(
     `;
 }
 
-
-// ============================================================
-// WATCHLIST STORAGE
-// ============================================================
-
-
 function getWatchlist() {
-
     try {
-
         const raw =
             localStorage.getItem(
                 WATCHLIST_KEY
             );
 
-        if (!raw) {
-
-            return {};
-        }
-
         return (
+            raw
+            ?
             JSON.parse(
                 raw
             )
             || {}
+            :
+            {}
         );
-
     }
     catch {
-
         return {};
     }
 }
 
-
 function saveWatchlistPosition(
     stock
 ) {
-
     const watchlist =
         getWatchlist();
 
@@ -2909,7 +3415,6 @@ function saveWatchlistPosition(
             stock.stock_id
         ]
         || {};
-
 
     const avgCost =
         document
@@ -2926,7 +3431,6 @@ function saveWatchlistPosition(
             )
             ?.value
         || "";
-
 
     watchlist[
         stock.stock_id
@@ -2960,7 +3464,6 @@ function saveWatchlistPosition(
             0,
     };
 
-
     localStorage.setItem(
         WATCHLIST_KEY,
         JSON.stringify(
@@ -2968,24 +3471,20 @@ function saveWatchlistPosition(
         )
     );
 
-
     renderWatchlist();
 
     renderHoldings();
 
     renderMy();
 
-
     showStockDetail(
         stock.stock_id
     );
 }
 
-
 function removeWatchlist(
     stockId
 ) {
-
     const watchlist =
         getWatchlist();
 
@@ -2993,14 +3492,12 @@ function removeWatchlist(
         stockId
     ];
 
-
     localStorage.setItem(
         WATCHLIST_KEY,
         JSON.stringify(
             watchlist
         )
     );
-
 
     renderWatchlist();
 
@@ -3009,12 +3506,10 @@ function removeWatchlist(
     renderMy();
 }
 
-
 function positionSummary(
     stock,
     position
 ) {
-
     const shares =
         Number(
             position.shares
@@ -3033,7 +3528,6 @@ function positionSummary(
             || 0
         );
 
-
     if (
         shares <= 0
         ||
@@ -3041,7 +3535,6 @@ function positionSummary(
         ||
         latest <= 0
     ) {
-
         return `
 
             <div class="position-hint">
@@ -3050,7 +3543,6 @@ function positionSummary(
             </div>
         `;
     }
-
 
     const cost =
         shares
@@ -3070,16 +3562,13 @@ function positionSummary(
     const returnPct =
         cost
         ?
-        (
-            pnl
-            /
-            cost
-            *
-            100
-        )
+        pnl
+        /
+        cost
+        *
+        100
         :
         0;
-
 
     return `
 
@@ -3117,16 +3606,9 @@ function positionSummary(
     `;
 }
 
-
-// ============================================================
-// FORMAT
-// ============================================================
-
-
 function changeClass(
     value
 ) {
-
     const numeric =
         Number(
             value
@@ -3139,7 +3621,6 @@ function changeClass(
         ||
         numeric === 0
     ) {
-
         return "neutral";
     }
 
@@ -3152,12 +3633,10 @@ function changeClass(
     );
 }
 
-
 function formatNumber(
     value,
     digits = 2
 ) {
-
     if (
         value === null
         ||
@@ -3165,10 +3644,8 @@ function formatNumber(
         ||
         value === ""
     ) {
-
         return "--";
     }
-
 
     const numeric =
         Number(
@@ -3180,10 +3657,8 @@ function formatNumber(
             numeric
         )
     ) {
-
         return "--";
     }
-
 
     return numeric
         .toLocaleString(
@@ -3198,11 +3673,9 @@ function formatNumber(
         );
 }
 
-
 function formatInteger(
     value
 ) {
-
     if (
         value === null
         ||
@@ -3210,10 +3683,8 @@ function formatInteger(
         ||
         value === ""
     ) {
-
         return "--";
     }
-
 
     const numeric =
         Number(
@@ -3225,10 +3696,8 @@ function formatInteger(
             numeric
         )
     ) {
-
         return "--";
     }
-
 
     return Math
         .round(
@@ -3239,11 +3708,9 @@ function formatInteger(
         );
 }
 
-
 function formatPercent(
     value
 ) {
-
     if (
         value === null
         ||
@@ -3251,10 +3718,8 @@ function formatPercent(
         ||
         value === ""
     ) {
-
         return "--";
     }
-
 
     const numeric =
         Number(
@@ -3266,29 +3731,53 @@ function formatPercent(
             numeric
         )
     ) {
-
         return "--";
     }
 
-
-    const sign =
-        numeric > 0
-        ?
-        "+"
-        :
-        "";
-
-
     return (
-        `${sign}${numeric.toFixed(2)}%`
+        `${numeric > 0 ? "+" : ""}`
+        +
+        `${numeric.toFixed(2)}%`
     );
 }
 
+function formatMaybePercent(
+    value,
+    digits = 0
+) {
+    if (
+        value === null
+        ||
+        value === undefined
+        ||
+        value === ""
+    ) {
+        return "--";
+    }
+
+    const numeric =
+        Number(
+            value
+        );
+
+    if (
+        !Number.isFinite(
+            numeric
+        )
+    ) {
+        return "--";
+    }
+
+    return (
+        `${numeric.toFixed(
+            digits
+        )}%`
+    );
+}
 
 function formatPercentRaw(
     value
 ) {
-
     if (
         value === null
         ||
@@ -3296,10 +3785,8 @@ function formatPercentRaw(
         ||
         value === ""
     ) {
-
         return "--";
     }
-
 
     const numeric =
         Number(
@@ -3311,22 +3798,103 @@ function formatPercentRaw(
             numeric
         )
     ) {
-
         return "--";
     }
-
 
     return (
         `${numeric.toFixed(2)}%`
     );
 }
 
+function formatSignedInteger(
+    value
+) {
+    if (
+        value === null
+        ||
+        value === undefined
+        ||
+        value === ""
+    ) {
+        return "--";
+    }
+
+    const numeric =
+        Number(
+            value
+        );
+
+    if (
+        !Number.isFinite(
+            numeric
+        )
+    ) {
+        return "--";
+    }
+
+    const formatted =
+        Math
+            .round(
+                numeric
+            )
+            .toLocaleString(
+                "zh-TW"
+            );
+
+    return (
+        numeric > 0
+        ?
+        `+${formatted}`
+        :
+        formatted
+    );
+}
+
+function formatSignedNumber(
+    value,
+    digits = 2
+) {
+    if (
+        value === null
+        ||
+        value === undefined
+        ||
+        value === ""
+    ) {
+        return "--";
+    }
+
+    const numeric =
+        Number(
+            value
+        );
+
+    if (
+        !Number.isFinite(
+            numeric
+        )
+    ) {
+        return "--";
+    }
+
+    const formatted =
+        numeric.toFixed(
+            digits
+        );
+
+    return (
+        numeric > 0
+        ?
+        `+${formatted}`
+        :
+        formatted
+    );
+}
 
 function priceRange(
     low,
     high
 ) {
-
     if (
         low === null
         ||
@@ -3336,10 +3904,8 @@ function priceRange(
         ||
         high === undefined
     ) {
-
         return "--";
     }
-
 
     return (
         `${formatNumber(
@@ -3352,11 +3918,9 @@ function priceRange(
     );
 }
 
-
 function escapeHtml(
     value
 ) {
-
     return String(
         value
         ?? ""
