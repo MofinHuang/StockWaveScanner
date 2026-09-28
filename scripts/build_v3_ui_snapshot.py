@@ -47,12 +47,17 @@ STATUS_FILE = (
     / "status.json"
 )
 
+ETFS_FILE = (
+    DATA_DIR
+    / "etfs.json"
+)
+
 OUTPUT_FILE = (
     DATA_DIR
     / "v3_ui.json"
 )
 
-UI_VERSION = "V3-UI-STEP1"
+UI_VERSION = "V3-UI-ETF-V1"
 
 TAIPEI = ZoneInfo(
     "Asia/Taipei"
@@ -62,7 +67,6 @@ TAIPEI = ZoneInfo(
 # ============================================================
 # HELPERS
 # ============================================================
-
 
 def configure_console() -> None:
 
@@ -183,7 +187,6 @@ def number(
 # STAGE
 # ============================================================
 
-
 def stage_display(
     stage_code: str | None,
 ) -> dict[str, str]:
@@ -253,7 +256,6 @@ def stage_display(
 # ============================================================
 # STOCK CARD
 # ============================================================
-
 
 def build_stock_card(
     stock: dict[str, Any],
@@ -494,7 +496,6 @@ def build_stock_card(
 # FIND STOCK
 # ============================================================
 
-
 def build_stock_map(
     stocks: list[
         dict[str, Any]
@@ -525,7 +526,6 @@ def build_stock_map(
 # ============================================================
 # RANKING
 # ============================================================
-
 
 def build_ranking_cards(
     ranking_payload: dict[str, Any],
@@ -587,7 +587,6 @@ def build_ranking_cards(
 # STAGE DISTRIBUTION
 # ============================================================
 
-
 def build_stage_distribution(
     stocks: list[
         dict[str, Any]
@@ -634,7 +633,6 @@ def build_stage_distribution(
 # ============================================================
 # SCORE SUMMARY
 # ============================================================
-
 
 def build_score_summary(
     stocks: list[
@@ -725,9 +723,87 @@ def build_score_summary(
 
 
 # ============================================================
-# MAIN
+# ETF
 # ============================================================
 
+def build_etf_domain(
+    etf_payload: dict[str, Any],
+) -> dict[str, Any]:
+
+    etfs = (
+        etf_payload.get(
+            "etfs"
+        )
+        or []
+    )
+
+    consensus = (
+        etf_payload.get(
+            "consensus"
+        )
+        or {}
+    )
+
+    return {
+
+        "title":
+            "ETF 持股異動",
+
+        "description":
+            (
+                "依各 ETF 官方持股快照比較持股變化，"
+                "不代表實際市場成交買進或賣出。"
+            ),
+
+        "note":
+            etf_payload.get(
+                "note"
+            ),
+
+        "schema_version":
+            etf_payload.get(
+                "schema_version"
+            ),
+
+        "generated_at":
+            etf_payload.get(
+                "generated_at"
+            ),
+
+        "change_type_labels":
+            etf_payload.get(
+                "change_type_labels"
+            )
+            or {},
+
+        "metric_type_labels":
+            etf_payload.get(
+                "metric_type_labels"
+            )
+            or {},
+
+        "period_labels":
+            etf_payload.get(
+                "period_labels"
+            )
+            or {},
+
+        "etf_count":
+            len(
+                etfs
+            ),
+
+        "etfs":
+            etfs,
+
+        "consensus":
+            consensus,
+    }
+
+
+# ============================================================
+# MAIN
+# ============================================================
 
 def main() -> int:
 
@@ -778,6 +854,12 @@ def main() -> int:
             )
         )
 
+        etf_payload = (
+            load_json(
+                ETFS_FILE
+            )
+        )
+
         stocks = (
             stocks_payload.get(
                 "stocks"
@@ -817,6 +899,12 @@ def main() -> int:
             )
         )
 
+        etf_domain = (
+            build_etf_domain(
+                etf_payload
+            )
+        )
+
         payload = {
 
             "ui_version":
@@ -841,6 +929,13 @@ def main() -> int:
 
             "market":
                 market_payload,
+
+            # ------------------------------------------------
+            # ETF
+            # ------------------------------------------------
+
+            "etf":
+                etf_domain,
 
             # ------------------------------------------------
             # SUMMARY
@@ -968,6 +1063,11 @@ def main() -> int:
         print(
             f"Action Priority   : "
             f"{len(action_priority):,}"
+        )
+
+        print(
+            f"ETF Count         : "
+            f"{etf_domain.get('etf_count', 0):,}"
         )
 
         print()

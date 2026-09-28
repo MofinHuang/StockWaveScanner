@@ -2414,3 +2414,51 @@ button {
             1fr;
     }
 }
+
+/* ==========================================================
+   V3 ETF MARKET
+   ========================================================== */
+
+.etf-history-notice {
+    padding:
+        12px
+        15px;
+
+    background:
+        rgba(
+            100,
+            168,
+            255,
+            0.05
+        );
+
+    border-bottom:
+        1px solid
+        var(--border);
+}
+
+.etf-history-title {
+    color:
+        var(--blue);
+
+    font-size: 11px;
+
+    font-weight: 800;
+}
+
+.etf-current-holdings {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 6px;
+
+    padding:
+        10px;
+}
+
+.etf-current-holdings
+.stock-row {
+    background:
+        var(--bg-soft);
+}

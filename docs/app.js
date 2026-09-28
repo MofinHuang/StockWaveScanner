@@ -12,11 +12,20 @@ const state = {
     actionPriority: [],
     stocks: [],
     stockMap: new Map(),
+
     sectorData: null,
     sectors: [],
+
     analystData: null,
     analysts: [],
     analystPeriod: 7,
+
+    etfData: null,
+    etfs: [],
+    etfPeriod: "1d",
+    etfSelectedId: "ALL",
+    etfChangeType: "CHANGED",
+
     currentPage: "home",
 };
 
@@ -120,6 +129,14 @@ async function loadData() {
 
         state.analysts =
             analystPayload?.analysts
+            || [];
+
+        state.etfData =
+            payload.etf
+            || null;
+
+        state.etfs =
+            payload.etf?.etfs
             || [];
 
         document
@@ -1059,13 +1076,37 @@ function renderMarket() {
 
             </button>
 
-            ${featureCardHtml(
-                "⇅",
-                "ETF 持股異動",
-                "追蹤指定 ETF 最近新進、加碼、減碼與剔除哪些股票。",
-                "當日・近5日・近20日",
-                "待建置"
-            )}
+            <button
+                id="openEtfs"
+                class="feature-card feature-button"
+            >
+
+                <div class="feature-icon">
+                    ⇅
+                </div>
+
+                <div class="feature-title">
+                    ETF 持股異動
+                </div>
+
+                <div class="feature-description">
+                    比較官方 ETF 持股 Snapshot，
+                    查看新進、增加、減少與剔除。
+                </div>
+
+                <div class="feature-meta">
+                    當日・近5日・近20日
+                </div>
+
+                <div class="feature-status feature-status-ready">
+                    已啟用
+                </div>
+
+                <div class="feature-link">
+                    查看 ETF 持股異動 →
+                </div>
+
+            </button>
 
             ${featureCardHtml(
                 "$",
@@ -1076,6 +1117,11 @@ function renderMarket() {
             )}
 
         </div>
+
+        <div
+            id="etfDomainPanel"
+            style="display:none;"
+        ></div>
     `;
 
     document
@@ -1131,6 +1177,1235 @@ function renderMarket() {
             () => {
                 switchPage(
                     "analysts"
+                );
+            }
+        );
+
+    document
+        .getElementById(
+            "openEtfs"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+
+                const panel =
+                    document.getElementById(
+                        "etfDomainPanel"
+                    );
+
+                if (!panel) {
+                    return;
+                }
+
+                panel.style.display =
+                    "block";
+
+                renderEtfDomain();
+
+                panel.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+            }
+        );    
+}
+
+// ============================================================
+// ETF HOLDINGS
+// ============================================================
+
+function renderEtfDomain() {
+
+    const container =
+        document.getElementById(
+            "etfDomainPanel"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const etfs =
+        state.etfs
+        || [];
+
+    if (!etfs.length) {
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    ⇅
+                </div>
+
+                <div>
+                    ETF 持股資料尚未發布
+                </div>
+
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML = `
+
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    ETF 持股異動
+                </div>
+
+                <div class="section-subtitle">
+                    官方持股 Snapshot 比較，
+                    不代表實際市場買進或賣出
+                </div>
+
+            </div>
+
+            <div class="section-count">
+                ${etfs.length} 檔 ETF
+            </div>
+
+        </div>
+
+
+        <div
+            id="etfPeriodFilters"
+            class="filter-bar"
+        >
+
+            ${etfFilterButton(
+                "1d",
+                "當日",
+                state.etfPeriod === "1d"
+            )}
+
+            ${etfFilterButton(
+                "5d",
+                "5 日",
+                state.etfPeriod === "5d"
+            )}
+
+            ${etfFilterButton(
+                "20d",
+                "20 日",
+                state.etfPeriod === "20d"
+            )}
+
+        </div>
+
+
+        <div
+            id="etfSelectFilters"
+            class="filter-bar"
+        >
+
+            ${etfSelectButton(
+                "ALL",
+                "全部 ETF",
+                state.etfSelectedId === "ALL"
+            )}
+
+            ${
+                etfs
+                    .map(
+                        etf =>
+                            etfSelectButton(
+                                etf.etf_id,
+                                etf.etf_id,
+                                state.etfSelectedId
+                                    === etf.etf_id
+                            )
+                    )
+                    .join("")
+            }
+
+        </div>
+
+
+        <div
+            id="etfChangeFilters"
+            class="filter-bar"
+        >
+
+            ${etfChangeButton(
+                "CHANGED",
+                "有異動",
+                state.etfChangeType
+                    === "CHANGED"
+            )}
+
+            ${etfChangeButton(
+                "NEW",
+                "新進",
+                state.etfChangeType
+                    === "NEW"
+            )}
+
+            ${etfChangeButton(
+                "INCREASE",
+                "持股增加",
+                state.etfChangeType
+                    === "INCREASE"
+            )}
+
+            ${etfChangeButton(
+                "DECREASE",
+                "持股減少",
+                state.etfChangeType
+                    === "DECREASE"
+            )}
+
+            ${etfChangeButton(
+                "REMOVED",
+                "剔除",
+                state.etfChangeType
+                    === "REMOVED"
+            )}
+
+            ${etfChangeButton(
+                "ALL",
+                "全部",
+                state.etfChangeType
+                    === "ALL"
+            )}
+
+        </div>
+
+
+        <div
+            id="etfSummary"
+        ></div>
+
+
+        <div
+            id="etfList"
+        ></div>
+
+
+        <div class="analyst-disclaimer">
+
+            ETF 異動為不同日期官方持股快照之差異，
+            不等同 ETF 在市場中的實際買進或賣出交易。
+            5 日與 20 日需累積足夠歷史 Snapshot 後才會顯示。
+
+        </div>
+    `;
+
+    bindEtfFilters();
+
+    renderEtfList();
+}
+
+
+function etfFilterButton(
+    value,
+    label,
+    active
+) {
+
+    return `
+
+        <button
+            class="
+                filter-button
+                ${active ? "active" : ""}
+            "
+            data-etf-period="${escapeHtml(
+                value
+            )}"
+        >
+            ${escapeHtml(
+                label
+            )}
+        </button>
+    `;
+}
+
+
+function etfSelectButton(
+    value,
+    label,
+    active
+) {
+
+    return `
+
+        <button
+            class="
+                filter-button
+                ${active ? "active" : ""}
+            "
+            data-etf-id="${escapeHtml(
+                value
+            )}"
+        >
+            ${escapeHtml(
+                label
+            )}
+        </button>
+    `;
+}
+
+
+function etfChangeButton(
+    value,
+    label,
+    active
+) {
+
+    return `
+
+        <button
+            class="
+                filter-button
+                ${active ? "active" : ""}
+            "
+            data-etf-change="${escapeHtml(
+                value
+            )}"
+        >
+            ${escapeHtml(
+                label
+            )}
+        </button>
+    `;
+}
+
+
+function bindEtfFilters() {
+
+    document
+        .querySelectorAll(
+            "#etfPeriodFilters .filter-button"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        state.etfPeriod =
+                            button.dataset.etfPeriod
+                            || "1d";
+
+                        renderEtfDomain();
+                    }
+                );
+            }
+        );
+
+
+    document
+        .querySelectorAll(
+            "#etfSelectFilters .filter-button"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        state.etfSelectedId =
+                            button.dataset.etfId
+                            || "ALL";
+
+                        renderEtfDomain();
+                    }
+                );
+            }
+        );
+
+
+    document
+        .querySelectorAll(
+            "#etfChangeFilters .filter-button"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        state.etfChangeType =
+                            button.dataset.etfChange
+                            || "CHANGED";
+
+                        renderEtfDomain();
+                    }
+                );
+            }
+        );
+}
+
+
+function renderEtfList() {
+
+    const container =
+        document.getElementById(
+            "etfList"
+        );
+
+    const summary =
+        document.getElementById(
+            "etfSummary"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const periodKey =
+        state.etfPeriod
+        || "1d";
+
+    const selectedId =
+        state.etfSelectedId
+        || "ALL";
+
+    const changeFilter =
+        state.etfChangeType
+        || "CHANGED";
+
+    let etfs =
+        [...state.etfs];
+
+    if (
+        selectedId !== "ALL"
+    ) {
+
+        etfs =
+            etfs.filter(
+                etf =>
+                    String(
+                        etf.etf_id
+                    )
+                    === selectedId
+            );
+    }
+
+    const sections = [];
+
+    let totalChanges = 0;
+
+    let availableCount = 0;
+
+    for (
+        const etf
+        of etfs
+    ) {
+
+        const period =
+            etf.periods?.[
+                periodKey
+            ]
+            || {};
+
+        if (
+            !period.available
+        ) {
+
+            sections.push(
+                etfUnavailableHtml(
+                    etf,
+                    period,
+                    periodKey
+                )
+            );
+
+            continue;
+        }
+
+        availableCount += 1;
+
+        let changes =
+            period.changes
+            || [];
+
+        if (
+            changeFilter
+            === "CHANGED"
+        ) {
+
+            changes =
+                changes.filter(
+                    item =>
+                        item.change_type
+                        !== "UNCHANGED"
+                );
+        }
+        else if (
+            changeFilter
+            !== "ALL"
+        ) {
+
+            changes =
+                changes.filter(
+                    item =>
+                        item.change_type
+                        === changeFilter
+                );
+        }
+
+        totalChanges +=
+            changes.length;
+
+        sections.push(
+            etfCardHtml(
+                etf,
+                period,
+                changes
+            )
+        );
+    }
+
+    if (summary) {
+
+        summary.innerHTML = `
+
+            <div class="sector-summary-grid">
+
+                ${sectorSummaryMetric(
+                    "ETF",
+                    etfs.length,
+                    "檔"
+                )}
+
+                ${sectorSummaryMetric(
+                    "已有期間資料",
+                    availableCount,
+                    "檔"
+                )}
+
+                ${sectorSummaryMetric(
+                    "符合異動",
+                    totalChanges,
+                    "筆"
+                )}
+
+                ${sectorSummaryMetric(
+                    "期間",
+                    etfPeriodLabel(
+                        periodKey
+                    ),
+                    ""
+                )}
+
+            </div>
+        `;
+    }
+
+    container.innerHTML =
+        sections.length
+        ?
+        sections.join("")
+        :
+        `
+
+        <div class="empty-state">
+            尚無 ETF 資料
+        </div>
+        `;
+
+    bindEtfStockRows(
+        container
+    );
+}
+
+
+function etfUnavailableHtml(
+    etf,
+    period,
+    periodKey
+) {
+
+    const holdings =
+        etf.latest_holdings
+        || [];
+
+    return `
+
+        <div class="analyst-card">
+
+            <div class="analyst-card-header">
+
+                <div>
+
+                    <div class="analyst-name">
+
+                        ${escapeHtml(
+                            etf.etf_id
+                        )}
+
+                        ${escapeHtml(
+                            etf.etf_name
+                            || ""
+                        )}
+
+                    </div>
+
+                    <div class="analyst-org">
+
+                        ${escapeHtml(
+                            etf.issuer_name
+                            || ""
+                        )}
+
+                        ・最新基準日：
+
+                        ${escapeHtml(
+                            etf.latest_date
+                            || "--"
+                        )}
+
+                    </div>
+
+                </div>
+
+                <div class="analyst-count">
+                    ${holdings.length} 檔
+                </div>
+
+            </div>
+
+
+            <div class="etf-history-notice">
+
+                <div class="etf-history-title">
+
+                    ${escapeHtml(
+                        etfPeriodLabel(
+                            periodKey
+                        )
+                    )}
+                    異動資料尚未累積完成
+
+                </div>
+
+                <div class="metric-sub">
+
+                    目前 Snapshot：
+                    ${formatInteger(
+                        period.available_snapshots
+                        ?? etf.snapshot_count
+                        ?? 0
+                    )}
+
+                    ／
+
+                    需要：
+                    ${formatInteger(
+                        period.required_snapshots
+                        ?? "--"
+                    )}
+
+                </div>
+
+                <div class="metric-sub">
+                    以下先顯示最新官方持股，
+                    不代表本期間的新進、增加或減少。
+                </div>
+
+            </div>
+
+
+            <div class="etf-current-holdings">
+
+                ${
+                    holdings.length
+
+                    ?
+
+                    holdings
+                        .map(
+                            item =>
+                                etfCurrentHoldingRowHtml(
+                                    etf,
+                                    item
+                                )
+                        )
+                        .join("")
+
+                    :
+
+                    `
+
+                    <div class="empty-state">
+                        尚無最新持股資料
+                    </div>
+                    `
+                }
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+function etfCurrentHoldingRowHtml(
+    etf,
+    item
+) {
+
+    const stockExists =
+        state.stockMap.has(
+            String(
+                item.stock_id
+            )
+        );
+
+    const hasShares =
+        item.shares !== null
+        &&
+        item.shares !== undefined;
+
+    return `
+
+        <div
+            class="stock-row"
+            data-etf-stock-id="${escapeHtml(
+                item.stock_id
+            )}"
+            style="
+                ${stockExists
+                    ? "cursor:pointer;"
+                    : ""}
+            "
+        >
+
+            <div class="stock-main">
+
+                <div class="stock-title">
+
+                    <span>
+                        ${escapeHtml(
+                            item.stock_name
+                            || "--"
+                        )}
+                    </span>
+
+                    <span class="stock-code">
+                        ${escapeHtml(
+                            item.stock_id
+                        )}
+                    </span>
+
+                </div>
+
+
+                <div class="score-inline">
+
+                    ${
+                        hasShares
+
+                        ?
+
+                        `
+
+                        <span>
+                            持股
+                            <strong>
+                                ${formatInteger(
+                                    item.shares
+                                )}
+                            </strong>
+                            股
+                        </span>
+                        `
+
+                        :
+
+                        ""
+                    }
+
+
+                    <span>
+                        權重
+                        <strong>
+                            ${formatMaybePercent(
+                                item.weight_pct,
+                                2
+                            )}
+                        </strong>
+                    </span>
+
+
+                    ${
+                        item.market_value !== null
+                        &&
+                        item.market_value !== undefined
+
+                        ?
+
+                        `
+
+                        <span>
+                            市值
+                            ${formatInteger(
+                                item.market_value
+                            )}
+                        </span>
+                        `
+
+                        :
+
+                        ""
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div class="stock-price">
+
+                <div class="stock-price-main">
+                    ${formatMaybePercent(
+                        item.weight_pct,
+                        2
+                    )}
+                </div>
+
+                <div class="metric-sub">
+                    持股權重
+                </div>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+function etfCardHtml(
+    etf,
+    period,
+    changes
+) {
+
+    return `
+
+        <div class="analyst-card">
+
+            <div class="analyst-card-header">
+
+                <div>
+
+                    <div class="analyst-name">
+
+                        ${escapeHtml(
+                            etf.etf_id
+                        )}
+
+                        ${escapeHtml(
+                            etf.etf_name
+                            || ""
+                        )}
+
+                    </div>
+
+                    <div class="analyst-org">
+
+                        ${escapeHtml(
+                            etf.issuer_name
+                            || ""
+                        )}
+
+                        ・
+
+                        ${escapeHtml(
+                            period.previous_date
+                            || "--"
+                        )}
+
+                        →
+
+                        ${escapeHtml(
+                            period.current_date
+                            || "--"
+                        )}
+
+                    </div>
+
+                </div>
+
+                <div class="analyst-count">
+                    ${changes.length} 筆
+                </div>
+
+            </div>
+
+
+            <div>
+
+                ${
+                    changes.length
+                    ?
+                    changes
+                        .map(
+                            change =>
+                                etfChangeRowHtml(
+                                    etf,
+                                    change
+                                )
+                        )
+                        .join("")
+                    :
+                    `
+
+                    <div class="empty-state">
+                        此篩選條件沒有異動資料
+                    </div>
+                    `
+                }
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+function etfChangeRowHtml(
+    etf,
+    item
+) {
+
+    const stockExists =
+        state.stockMap.has(
+            String(
+                item.stock_id
+            )
+        );
+
+    const metricType =
+        item.metric_type
+        || etf.default_change_metric
+        || "SHARES";
+
+    const changeValue =
+        metricType === "SHARES"
+        ?
+        item.shares_change
+        :
+        item.weight_change_pct;
+
+    return `
+
+        <div
+            class="stock-row"
+            data-etf-stock-id="${escapeHtml(
+                item.stock_id
+            )}"
+            style="
+                ${stockExists
+                    ? "cursor:pointer;"
+                    : ""}
+            "
+        >
+
+            <div class="stock-main">
+
+                <div class="stock-title">
+
+                    <span>
+                        ${escapeHtml(
+                            item.stock_name
+                            || "--"
+                        )}
+                    </span>
+
+                    <span class="stock-code">
+                        ${escapeHtml(
+                            item.stock_id
+                        )}
+                    </span>
+
+                    ${etfChangeBadge(
+                        item.change_type
+                    )}
+
+                </div>
+
+
+                <div class="score-inline">
+
+                    ${
+                        metricType
+                        === "SHARES"
+
+                        ?
+
+                        `
+
+                        <span>
+                            前期
+                            ${formatInteger(
+                                item.previous_shares
+                            )}
+                        </span>
+
+                        <span>
+                            目前
+                            ${formatInteger(
+                                item.current_shares
+                            )}
+                        </span>
+
+                        <span>
+                            變化
+                            <strong class="${changeClass(
+                                changeValue
+                            )}">
+                                ${formatSignedInteger(
+                                    changeValue
+                                )}
+                            </strong>
+                        </span>
+                        `
+
+                        :
+
+                        `
+
+                        <span>
+                            前期權重
+                            ${formatMaybePercent(
+                                item.previous_weight_pct,
+                                2
+                            )}
+                        </span>
+
+                        <span>
+                            目前權重
+                            ${formatMaybePercent(
+                                item.current_weight_pct,
+                                2
+                            )}
+                        </span>
+
+                        <span>
+                            權重變化
+                            <strong class="${changeClass(
+                                changeValue
+                            )}">
+                                ${formatSignedNumber(
+                                    changeValue,
+                                    2
+                                )}%
+                            </strong>
+                        </span>
+                        `
+                    }
+
+                </div>
+
+
+                ${
+                    metricType
+                    === "SHARES"
+                    &&
+                    (
+                        item.current_weight_pct
+                        !== null
+                        &&
+                        item.current_weight_pct
+                        !== undefined
+                    )
+
+                    ?
+
+                    `
+
+                    <div class="metric-sub">
+
+                        目前權重：
+                        ${formatMaybePercent(
+                            item.current_weight_pct,
+                            2
+                        )}
+
+                        ${
+                            item.weight_change_pct
+                            !== null
+                            &&
+                            item.weight_change_pct
+                            !== undefined
+
+                            ?
+
+                            `・權重變化
+                            <span class="${changeClass(
+                                item.weight_change_pct
+                            )}">
+                                ${formatSignedNumber(
+                                    item.weight_change_pct,
+                                    2
+                                )}%
+                            </span>`
+
+                            :
+
+                            ""
+                        }
+
+                    </div>
+                    `
+
+                    :
+
+                    ""
+                }
+
+            </div>
+
+
+            <div class="stock-price">
+
+                <div class="metric-sub">
+                    ${escapeHtml(
+                        metricType === "SHARES"
+                        ? "股數"
+                        : "權重"
+                    )}
+                </div>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+function etfChangeBadge(
+    changeType
+) {
+
+    const type =
+        String(
+            changeType
+            || "UNCHANGED"
+        )
+        .toUpperCase();
+
+    const labels = {
+
+        NEW:
+            "新進",
+
+        INCREASE:
+            "持股增加",
+
+        DECREASE:
+            "持股減少",
+
+        REMOVED:
+            "剔除",
+
+        UNCHANGED:
+            "持平",
+    };
+
+    let cssClass =
+        "badge";
+
+    if (
+        type === "NEW"
+        ||
+        type === "INCREASE"
+    ) {
+
+        cssClass +=
+            " badge-ready";
+    }
+    else if (
+        type === "DECREASE"
+        ||
+        type === "REMOVED"
+    ) {
+
+        cssClass +=
+            " badge-wait";
+    }
+
+    return `
+
+        <span class="${cssClass}">
+            ${escapeHtml(
+                labels[type]
+                || type
+            )}
+        </span>
+    `;
+}
+
+
+function etfPeriodLabel(
+    period
+) {
+
+    const labels = {
+
+        "1d":
+            "當日",
+
+        "5d":
+            "近 5 日",
+
+        "20d":
+            "近 20 日",
+    };
+
+    return (
+        labels[
+            period
+        ]
+        || period
+    );
+}
+
+
+function bindEtfStockRows(
+    root
+) {
+
+    root
+        ?.querySelectorAll(
+            "[data-etf-stock-id]"
+        )
+        .forEach(
+            element => {
+
+                element.addEventListener(
+                    "click",
+                    () => {
+
+                        const stockId =
+                            String(
+                                element.dataset.etfStockId
+                                || ""
+                            );
+
+                        if (
+                            state.stockMap.has(
+                                stockId
+                            )
+                        ) {
+
+                            showStockDetail(
+                                stockId
+                            );
+                        }
+                    }
                 );
             }
         );

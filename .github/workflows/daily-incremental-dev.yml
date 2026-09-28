@@ -190,7 +190,8 @@ jobs:
             scripts/sync_institutional_incremental.py \
             scripts/daily_incremental_pipeline.py \
             scripts/sync_v3_industry_sector.py \
-            scripts/build_v3_sector_snapshot.py
+            scripts/build_v3_sector_snapshot.py \
+            scripts/sync_v3_etf_holdings.py
 
           echo "[PASS] Daily Pipeline syntax validation"
 
@@ -258,6 +259,14 @@ jobs:
 
           python scripts/build_v3_sector_snapshot.py
 
+      # ======================================================
+      # V3 ETF
+      # ======================================================
+
+      - name: Sync V3 ETF Holdings
+        run: |
+
+          python scripts/sync_v3_etf_holdings.py
 
       # ======================================================
       # Success
@@ -271,5 +280,6 @@ jobs:
           echo "StockWaveScanner V3"
           echo "Daily Incremental DEV completed"
           echo "Sector snapshot completed"
+          echo "ETF holdings snapshot completed"
           echo "Runner: Windows"
           echo "========================================"

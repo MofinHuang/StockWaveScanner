@@ -22,6 +22,7 @@ on:
       - "scripts/build_v2_scores.py"
       - "scripts/build_v3_ui_snapshot.py"
       - "scripts/export_v3_sectors.py"
+      - "scripts/export_v3_etfs.py"
       - ".github/workflows/publish-v2-ui-dev.yml"
 
 
@@ -174,6 +175,7 @@ jobs:
             scripts/export_v2_ui_snapshot.py \
             scripts/build_v2_scores.py \
             scripts/export_v3_sectors.py \
+            scripts/export_v3_etfs.py \
             scripts/build_v3_ui_snapshot.py
 
           echo "[PASS] V3 UI scripts syntax validation"
@@ -219,6 +221,19 @@ jobs:
 
 
       # ======================================================
+      # V3 ETF DOMAIN
+      # ======================================================
+
+      - name: Export V3 ETF Domain
+        shell: bash
+
+        run: |
+
+          python \
+            scripts/export_v3_etfs.py
+
+
+      # ======================================================
       # V3 UI
       # ======================================================
 
@@ -258,10 +273,20 @@ jobs:
           fi
 
 
+          if [ ! -f "docs/data/latest/etfs.json" ]; then
+
+            echo "ERROR: docs/data/latest/etfs.json was not generated"
+
+            exit 1
+
+          fi
+
+
           echo "[PASS] v3_ui.json"
 
           echo "[PASS] sectors.json"
 
+          echo "[PASS] etfs.json"
 
       - name: Show generated files
         shell: bash
