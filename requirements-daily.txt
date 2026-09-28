@@ -1,3 +1,4 @@
 libsql==0.1.11
 python-dotenv==1.2.3
 tzdata==2025.2
+requests>=2.32.0,<3
