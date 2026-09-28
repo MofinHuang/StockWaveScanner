@@ -1164,8 +1164,8 @@ def fetch_fuhwa_00929():
             else ""
         )
     )
-    
-    
+
+
 def parse_fuhwa_00929(
     response: dict,
 ):
