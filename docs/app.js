@@ -2,6 +2,7 @@
 
 const DATA_FILE = "./data/latest/v3_ui.json";
 const SECTOR_FILE = "./data/latest/sectors.json";
+const ANALYST_FILE = "./data/latest/analysts.json";
 const WATCHLIST_KEY = "stockwavescanner.v3.watchlist";
 
 const state = {
@@ -13,6 +14,9 @@ const state = {
     stockMap: new Map(),
     sectorData: null,
     sectors: [],
+    analystData: null,
+    analysts: [],
+    analystPeriod: 7,
     currentPage: "home",
 };
 
@@ -60,6 +64,20 @@ async function loadData() {
             );
         }
 
+        let analystPayload = null;
+
+        try {
+            analystPayload = await loadJson(
+                ANALYST_FILE
+            );
+        }
+        catch (error) {
+            console.warn(
+                "Analyst data unavailable",
+                error
+            );
+        }
+
         state.ui = payload;
 
         state.market =
@@ -95,6 +113,13 @@ async function loadData() {
 
         state.sectors =
             sectorPayload?.sectors
+            || [];
+
+        state.analystData =
+            analystPayload;
+
+        state.analysts =
+            analystPayload?.analysts
             || [];
 
         document
@@ -221,6 +246,13 @@ function switchPage(page) {
     }
 
     if (
+        page === "analysts"
+    ) {
+        mainPage =
+            "market";
+    }
+
+    if (
         page === "watchlist"
         ||
         page === "holdings"
@@ -277,6 +309,12 @@ function switchPage(page) {
     ) {
         renderMarket();
     }
+
+    if (
+        page === "analysts"
+    ) {
+        renderAnalysts();
+    }
 }
 
 function renderAll() {
@@ -291,6 +329,8 @@ function renderAll() {
     renderTop10();
 
     renderMarket();
+
+    renderAnalysts();
 
     renderMy();
 
@@ -988,13 +1028,36 @@ function renderMarket() {
 
         <div class="feature-grid">
 
-            ${featureCardHtml(
-                "◇",
-                "分析師觀點",
-                "整理近期分析師研究的股票、族群與主要分析面向。",
-                "當日・近3日・近7日・近30日",
-                "待建置"
-            )}
+            <button
+                id="openAnalysts"
+                class="feature-card feature-button"
+            >
+
+                <div class="feature-icon">
+                    ◇
+                </div>
+
+                <div class="feature-title">
+                    分析師觀點
+                </div>
+
+                <div class="feature-description">
+                    整理近期分析師公開內容與研究主題。
+                </div>
+
+                <div class="feature-meta">
+                    今日・近3日・近7日・近30日
+                </div>
+
+                <div class="feature-status feature-status-ready">
+                    已啟用
+                </div>
+
+                <div class="feature-link">
+                    查看分析師觀點 →
+                </div>
+
+            </button>
 
             ${featureCardHtml(
                 "⇅",
@@ -1058,7 +1121,545 @@ function renderMarket() {
             "strength"
         );
     }
+
+    document
+        .getElementById(
+            "openAnalysts"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+                switchPage(
+                    "analysts"
+                );
+            }
+        );
 }
+
+function renderAnalysts() {
+    const page =
+        document.getElementById(
+            "page-analysts"
+        );
+
+    if (!page) {
+        return;
+    }
+
+    const analysts =
+        state.analysts
+        || [];
+
+    page.innerHTML = `
+
+        <div class="page-back-row">
+
+            <button
+                id="backToMarketFromAnalysts"
+                class="text-button"
+            >
+                ← 返回市場觀察
+            </button>
+
+        </div>
+
+
+        <div class="page-intro">
+
+            <div class="page-intro-title">
+                分析師觀點
+            </div>
+
+            <div class="page-intro-description">
+                整理公開來源中近期分析師發布的內容。
+                此 Domain 不直接影響個股 Overall 評分。
+            </div>
+
+        </div>
+
+
+        <div
+            id="analystPeriodFilters"
+            class="filter-bar analyst-filter-bar"
+        >
+
+            <button
+                class="filter-button"
+                data-analyst-period="1"
+            >
+                今日
+            </button>
+
+            <button
+                class="filter-button"
+                data-analyst-period="3"
+            >
+                3 日
+            </button>
+
+            <button
+                class="filter-button active"
+                data-analyst-period="7"
+            >
+                7 日
+            </button>
+
+            <button
+                class="filter-button"
+                data-analyst-period="30"
+            >
+                30 日
+            </button>
+
+            <button
+                class="filter-button"
+                data-analyst-period="0"
+            >
+                全部
+            </button>
+
+        </div>
+
+
+        <div
+            id="analystSummary"
+            class="analyst-summary"
+        ></div>
+
+
+        <div
+            id="analystList"
+            class="analyst-list"
+        ></div>
+
+
+        <div class="analyst-disclaimer">
+
+            本頁依公開來源進行資訊整理。
+            目前僅顯示來源標題、日期及原始連結等公開 Metadata，
+            尚未進行逐字稿擷取、AI 摘要或投資立場判讀。
+            實際觀點請以原始來源為準。
+
+        </div>
+    `;
+
+    document
+        .getElementById(
+            "backToMarketFromAnalysts"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+                switchPage(
+                    "market"
+                );
+            }
+        );
+
+    document
+        .querySelectorAll(
+            "#analystPeriodFilters .filter-button"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        document
+                            .querySelectorAll(
+                                "#analystPeriodFilters .filter-button"
+                            )
+                            .forEach(
+                                item => {
+                                    item.classList.remove(
+                                        "active"
+                                    );
+                                }
+                            );
+
+                        button.classList.add(
+                            "active"
+                        );
+
+                        state.analystPeriod =
+                            Number(
+                                button.dataset.analystPeriod
+                                || 7
+                            );
+
+                        renderAnalystList();
+                    }
+                );
+            }
+        );
+
+    if (!analysts.length) {
+
+        const list =
+            document.getElementById(
+                "analystList"
+            );
+
+        if (list) {
+            list.innerHTML = `
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        ◇
+                    </div>
+
+                    <div>
+                        分析師資料尚未發布
+                    </div>
+
+                    <div class="metric-sub">
+                        等待 analysts.json 產生後即可顯示。
+                    </div>
+
+                </div>
+            `;
+        }
+
+        return;
+    }
+
+    renderAnalystList();
+}
+
+
+function renderAnalystList() {
+    const container =
+        document.getElementById(
+            "analystList"
+        );
+
+    const summary =
+        document.getElementById(
+            "analystSummary"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const days =
+        Number(
+            state.analystPeriod
+            ?? 7
+        );
+
+    let visibleCount = 0;
+
+    const sections = [];
+
+    for (
+        const analyst
+        of state.analysts
+    ) {
+
+        const comments =
+            (
+                analyst.comments
+                || []
+            )
+            .filter(
+                item =>
+                    analystWithinDays(
+                        item.published_at_tw
+                        || item.published_at,
+                        days
+                    )
+            );
+
+        if (!comments.length) {
+            continue;
+        }
+
+        visibleCount +=
+            comments.length;
+
+        sections.push(
+            analystCardHtml(
+                analyst,
+                comments
+            )
+        );
+    }
+
+    if (summary) {
+
+        summary.innerHTML = `
+
+            <span>
+                分析師
+                <strong>
+                    ${formatInteger(
+                        state.analysts.length
+                    )}
+                </strong>
+                位
+            </span>
+
+            <span>
+                顯示
+                <strong>
+                    ${formatInteger(
+                        visibleCount
+                    )}
+                </strong>
+                筆
+            </span>
+
+            <span>
+                資料更新
+                <strong>
+                    ${escapeHtml(
+                        formatAnalystDateTime(
+                            state.analystData
+                                ?.generated_at
+                        )
+                    )}
+                </strong>
+            </span>
+        `;
+    }
+
+    if (!sections.length) {
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    ◇
+                </div>
+
+                <div>
+                    此期間沒有分析師資料
+                </div>
+
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        sections.join("");
+}
+
+
+function analystCardHtml(
+    analyst,
+    comments
+) {
+    return `
+
+        <div class="analyst-card">
+
+            <div class="analyst-card-header">
+
+                <div>
+
+                    <div class="analyst-name">
+                        ${escapeHtml(
+                            analyst.display_name
+                            || analyst.analyst_name
+                            || "--"
+                        )}
+                    </div>
+
+                    <div class="analyst-org">
+                        ${escapeHtml(
+                            analyst.organization_name
+                            || ""
+                        )}
+                    </div>
+
+                </div>
+
+                <div class="analyst-count">
+                    ${comments.length} 筆
+                </div>
+
+            </div>
+
+
+            <div class="analyst-comment-list">
+
+                ${
+                    comments
+                        .map(
+                            comment =>
+                                analystCommentHtml(
+                                    comment
+                                )
+                        )
+                        .join("")
+                }
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+function analystCommentHtml(
+    comment
+) {
+    return `
+
+        <a
+            class="analyst-comment"
+            href="${escapeHtml(
+                comment.source_url
+                || "#"
+            )}"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+
+            <div class="analyst-comment-meta">
+
+                <span>
+                    ${escapeHtml(
+                        formatAnalystDateTime(
+                            comment.published_at_tw
+                            || comment.published_at
+                        )
+                    )}
+                </span>
+
+                <span class="analyst-source">
+                    ${escapeHtml(
+                        comment.source_name
+                        || comment.source_type
+                        || "來源"
+                    )}
+                </span>
+
+            </div>
+
+            <div class="analyst-comment-title">
+                ${escapeHtml(
+                    comment.title
+                    || "--"
+                )}
+            </div>
+
+            <div class="analyst-comment-link">
+                查看原始內容 →
+            </div>
+
+        </a>
+    `;
+}
+
+
+function analystWithinDays(
+    value,
+    days
+) {
+    if (!value) {
+        return false;
+    }
+
+    if (days === 0) {
+        return true;
+    }
+
+    const date =
+        new Date(
+            value
+        );
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return false;
+    }
+
+    const now =
+        new Date();
+
+    if (days === 1) {
+
+        return (
+            date.getFullYear()
+            === now.getFullYear()
+            &&
+            date.getMonth()
+            === now.getMonth()
+            &&
+            date.getDate()
+            === now.getDate()
+        );
+    }
+
+    const cutoff =
+        new Date(
+            now.getTime()
+            -
+            days
+            *
+            24
+            *
+            60
+            *
+            60
+            *
+            1000
+        );
+
+    return (
+        date >= cutoff
+    );
+}
+
+
+function formatAnalystDateTime(
+    value
+) {
+    if (!value) {
+        return "--";
+    }
+
+    const date =
+        new Date(
+            value
+        );
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return String(
+            value
+        );
+    }
+
+    return new Intl.DateTimeFormat(
+        "zh-TW",
+        {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        }
+    ).format(
+        date
+    );
+}
+
 
 function sectorSummaryMetric(
     label,
