@@ -17,6 +17,9 @@ from parse_v3_financial_holding_mega import parse_mega
 from parse_v3_financial_holding_sinopac import parse_sinopac
 from parse_v3_financial_holding_ctbc import parse_ctbc
 from parse_v3_financial_holding_first import parse_first
+from parse_v3_financial_holding_kgi import parse_kgi
+from parse_v3_financial_holding_ibf import parse_ibf
+from parse_v3_financial_holding_tcf import parse_tcf
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -390,6 +393,18 @@ def main():
             parse_first()
         )
 
+        kgi_rows = latest_rows(
+            parse_kgi()
+        )
+
+        ibf_rows = latest_rows(
+            parse_ibf()
+        )
+
+        tcf_rows = latest_rows(
+            parse_tcf()
+        )
+
         all_rows = (
             yuanta_rows
             + cathay_rows
@@ -401,6 +416,9 @@ def main():
             + sinopac_rows
             + ctbc_rows
             + first_rows
+            + kgi_rows
+            + ibf_rows
+            + tcf_rows
         )
 
         yuanta_count = sync_rows(
@@ -451,6 +469,21 @@ def main():
         first_count = sync_rows(
             conn,
             first_rows,
+        )
+
+        kgi_count = sync_rows(
+            conn,
+            kgi_rows,
+        )
+
+        ibf_count = sync_rows(
+            conn,
+            ibf_rows,
+        )
+
+        tcf_count = sync_rows(
+            conn,
+            tcf_rows,
         )
 
         yoy_count = update_yoy_metrics(
@@ -510,6 +543,21 @@ def main():
         print(
             f"[PASS] First Financial synced rows: "
             f"{first_count}"
+        )
+
+        print(
+            f"[PASS] KGI Financial synced rows: "
+            f"{kgi_count}"
+        )
+
+        print(
+            f"[PASS] IBF Financial synced rows: "
+            f"{ibf_count}"
+        )
+
+        print(
+            f"[PASS] TCF Financial synced rows: "
+            f"{tcf_count}"
         )
 
         print(
@@ -594,6 +642,30 @@ def main():
             verify_stock(
                 conn,
                 "2892",
+            ),
+        )
+        
+        print_verify(
+            "2883 凱基金",
+            verify_stock(
+                conn,
+                "2883",
+            ),
+        )
+
+        print_verify(
+            "2889 國票金",
+            verify_stock(
+                conn,
+                "2889",
+            ),
+        )
+
+        print_verify(
+            "5880 合庫金",
+            verify_stock(
+                conn,
+                "5880",
             ),
         )
 
