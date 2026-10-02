@@ -2,9 +2,9 @@ name: StockWaveScanner V2 TDCC Weekly DEV
 
 on:
   schedule:
-    # Taiwan Saturday 09:17
-    # UTC Saturday 01:17
-    - cron: "17 1 * * 6"
+    # Taiwan Sunday 09:17
+    # UTC Sunday 01:17
+    - cron: "17 1 * * 0"
 
   workflow_dispatch:
 

@@ -2,13 +2,7 @@ name: StockWaveScanner V2 Quarterly Financial DEV
 
 on:
   schedule:
-    # Taiwan Monday-Friday 19:37
-    # UTC Monday-Friday 11:37
-    #
-    # Source is checked every weekday.
-    # If no new financial quarter is available,
-    # the incremental script safely no-ops.
-    - cron: "37 11 * * 1-5"
+    - cron: "50 12 * * 1-5"
 
   workflow_dispatch:
 

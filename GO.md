@@ -1,7 +1,7 @@
 StockWaveScanner V3 — GO.md
 Last Updated：
 ```text
-2026-09-29
+2026-10-02
 ```
 本文件是專案唯一的「進度交接點」。
 本文件只記錄：
@@ -624,6 +624,37 @@ Workflow：
 ```text
 .github/workflows/daily-incremental-dev.yml
 ```
+
+2026-10-02 已重新檢討每日排程，統一以台灣時間規劃：
+```text
+每日 02:17        Historical Backfill
+週一～週五 20:15  Daily Incremental
+週一～週五 20:35  Monthly Revenue
+週一～週五 20:50  Quarterly Financial
+每日 21:20        V3 UI Build / GitHub Pages
+每週日 09:17      TDCC Weekly
+```
+
+對應 GitHub Actions UTC cron：
+```text
+Historical Backfill  17 18 * * *
+Daily Incremental     15 12 * * 1-5
+Monthly Revenue       35 12 * * 1-5
+Quarterly Financial   50 12 * * 1-5
+V3 UI                 20 13 * * *
+TDCC Weekly            17 1 * * 0
+```
+
+排程原則：
+```text
+當日正式資料先同步
+↓
+低頻 Fundamental 資料檢查
+↓
+最後才重建 Score / Domain JSON / V3 UI
+```
+Historical Backfill 與每日正式資料 Pipeline 分離，避免互相競爭執行資源。
+
 Financial Holding：
 ```text
 目前先完成 Local + Turso DEV 資料層
@@ -795,8 +826,32 @@ Git 不使用 `git add .`。
 Financial Holding 日常同步使用 Incremental，不重跑完整歷史。
 Historical Backfill 與 Daily Incremental 分開。
 ---
-16. 今日完成 — 2026-09-29
-今日 Financial Holding Domain 完成：
+16. 最近完成
+2026-10-02：
+```text
+修正 Market Index 跨月份 Incremental 重複資料問題。
+原因為月份交界時 Current API 仍可能回傳上一交易日，
+與上一月份 Historical API 形成相同 market / index / trade_date。
+
+修正 fetch_market_range：
+每次月份抓取只接受 row_date 與 month_start 同年月的資料。
+
+本機 DEV 驗證成功：
+TWSE 2026-09-30 ～ 2026-10-01 新增 2 筆
+TPEx 2026-09-30 ～ 2026-10-01 新增 2 筆
+兩邊 Last Data Date 均推進至 2026-10-01
+Market Index Pipeline OK
+
+重新檢討並調整 GitHub Actions 排程：
+02:17 Historical Backfill
+20:15 Daily Incremental
+20:35 Monthly Revenue
+20:50 Quarterly Financial
+21:20 V3 UI Build / GitHub Pages
+週日 09:17 TDCC Weekly
+```
+
+2026-09-29 Financial Holding Domain：
 ```text
 建立 financial_holding_master
 建立 financial_holding_monthly

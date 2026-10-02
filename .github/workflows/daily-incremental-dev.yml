@@ -2,9 +2,9 @@ name: StockWaveScanner V3 Daily Incremental DEV
 
 on:
   schedule:
-    # Taiwan 16:00 = UTC 08:00
-    # Monday ~ Friday
-    - cron: "0 8 * * 1-5"
+    # Taiwan Monday-Friday 20:15
+    # UTC Monday-Friday 12:15
+    - cron: "15 12 * * 1-5"
 
   workflow_dispatch:
     inputs:

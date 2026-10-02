@@ -35,12 +35,9 @@ on:
 
 
   schedule:
-
-    # Taiwan time: every hour at :17 outside market hours
-    # Runs: 00:17~08:17 and 14:17~23:17
-    # Skips: 09:17~13:17
-    # GitHub Actions cron uses UTC
-    - cron: "0 9 * * *"
+    # Taiwan every day 02:17
+    # UTC previous day 18:17
+    - cron: "17 18 * * *"
 
 
 permissions:

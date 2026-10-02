@@ -1333,13 +1333,27 @@ def fetch_market_range(
                 )
             )
 
+            # 每次 month fetch 只接受該月份的資料。
+            #
+            # Current API 在月初可能仍回傳上一個交易日，
+            # 若不限制年月，會與上一月份 Historical API
+            # 產生重複 market/index/date。
+            if (
+                row_date.year
+                != month_start.year
+                or
+                row_date.month
+                != month_start.month
+            ):
+                continue
+
             if (
                 start
                 <= row_date
                 <= through
             ):
                 rows.append(row)
-
+                
         time.sleep(
             REQUEST_DELAY
         )
