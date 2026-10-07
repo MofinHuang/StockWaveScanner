@@ -91,7 +91,7 @@ jobs:
 
           python -c "import sys; print('stdout encoding:', sys.stdout.encoding)"
 
-          python -c "print('UTF-8 test: 台泥 / 亞泥 / 上櫃 / 族群')"
+          python -c "print('UTF-8 test: 台泥 / 亞泥 / 上櫃 / 族群 / 金控')"
 
           pip --version
 
@@ -191,7 +191,8 @@ jobs:
             scripts/daily_incremental_pipeline.py \
             scripts/sync_v3_industry_sector.py \
             scripts/build_v3_sector_snapshot.py \
-            scripts/sync_v3_etf_holdings.py
+            scripts/sync_v3_etf_holdings.py \
+            scripts/sync_v3_financial_holding_monthly.py
 
           echo "[PASS] Daily Pipeline syntax validation"
 
@@ -259,6 +260,7 @@ jobs:
 
           python scripts/build_v3_sector_snapshot.py
 
+
       # ======================================================
       # V3 ETF
       # ======================================================
@@ -267,6 +269,17 @@ jobs:
         run: |
 
           python scripts/sync_v3_etf_holdings.py
+
+
+      # ======================================================
+      # V3 FINANCIAL HOLDING
+      # ======================================================
+
+      - name: Sync V3 Financial Holding Monthly
+        run: |
+
+          python scripts/sync_v3_financial_holding_monthly.py
+
 
       # ======================================================
       # Success
@@ -281,5 +294,6 @@ jobs:
           echo "Daily Incremental DEV completed"
           echo "Sector snapshot completed"
           echo "ETF holdings snapshot completed"
+          echo "Financial holding monthly sync completed"
           echo "Runner: Windows"
           echo "========================================"

@@ -23,6 +23,7 @@ on:
       - "scripts/build_v3_ui_snapshot.py"
       - "scripts/export_v3_sectors.py"
       - "scripts/export_v3_etfs.py"
+      - "scripts/export_v3_financial_holdings.py"
       - ".github/workflows/publish-v2-ui-dev.yml"
 
 
@@ -176,6 +177,7 @@ jobs:
             scripts/build_v2_scores.py \
             scripts/export_v3_sectors.py \
             scripts/export_v3_etfs.py \
+            scripts/export_v3_financial_holdings.py \
             scripts/build_v3_ui_snapshot.py
 
           echo "[PASS] V3 UI scripts syntax validation"
@@ -234,6 +236,19 @@ jobs:
 
 
       # ======================================================
+      # V3 FINANCIAL HOLDING DOMAIN
+      # ======================================================
+
+      - name: Export V3 Financial Holding Domain
+        shell: bash
+
+        run: |
+
+          python \
+            scripts/export_v3_financial_holdings.py
+
+
+      # ======================================================
       # V3 UI
       # ======================================================
 
@@ -282,11 +297,20 @@ jobs:
           fi
 
 
+          if [ ! -f "docs/data/latest/financial_holdings.json" ]; then
+
+            echo "ERROR: docs/data/latest/financial_holdings.json was not generated"
+
+            exit 1
+
+          fi
+
+
           echo "[PASS] v3_ui.json"
-
           echo "[PASS] sectors.json"
-
           echo "[PASS] etfs.json"
+          echo "[PASS] financial_holdings.json"
+
 
       - name: Show generated files
         shell: bash

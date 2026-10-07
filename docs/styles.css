@@ -2462,3 +2462,23 @@ button {
     background:
         var(--bg-soft);
 }
+
+/* ==========================================================
+   V3 FINANCIAL HOLDING MARKET
+   ========================================================== */
+
+.financial-holding-filter-bar {
+    position: static;
+
+    top: auto;
+
+    z-index: auto;
+
+    margin-bottom: 12px;
+
+    padding-top: 0;
+}
+
+#financialHoldingDomainPanel {
+    margin-top: 26px;
+}

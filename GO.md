@@ -2,7 +2,7 @@
 
 ## StockWaveScanner V3 - Development Handoff
 
-Last Updated: 2026-10-06
+Last Updated: 2026-10-07
 
 ---
 
@@ -87,7 +87,7 @@ Historical data completion should use separate files:
 backfill_*.py
 ```
 
-Current working principle:
+Working principle:
 
 ```text
 Existing Parser
@@ -153,6 +153,32 @@ WAITING_DATA
 
 Never convert missing data to zero.
 
+### 3.5 Financial Holding Historical Backfill
+
+Historical backfill workflow:
+
+```text
+Collect all target months
+↓
+Validate all target months
+↓
+Validate YTD continuity
+↓
+Only then connect to Turso
+↓
+Upsert
+↓
+Update YoY
+↓
+Verify
+```
+
+If source validation fails:
+
+```text
+Do not write partial historical data
+```
+
 ---
 
 ## 4. V3 Scoring Architecture
@@ -206,6 +232,17 @@ Do not design a Financial Holding score yet.
 | 2892 | 第一金 | BANK |
 | 5880 | 合庫金 | BANK |
 
+Business Type UI labels:
+
+```text
+BANK       → 銀行型
+INSURANCE  → 壽險型
+SECURITIES → 證券型
+MIXED      → 綜合型
+```
+
+---
+
 ## 5.2 Tables
 
 ### financial_holding_master
@@ -238,9 +275,28 @@ ytd_eps            = 元
 ytd_profit_yoy_pct = %
 ```
 
+YoY:
+
+```text
+(current_ytd / previous_year_same_month_ytd - 1) * 100
+```
+
+Rules:
+
+```text
+Previous-year YTD missing
+→ previous_year_ytd_net_profit = NULL
+→ ytd_profit_yoy_pct = NULL
+
+Previous-year YTD = 0
+→ ytd_profit_yoy_pct = NULL
+```
+
 ---
 
-# 6. Financial Holding Parser Status
+# 6. Financial Holding Implementation Status
+
+## 6.1 Current Parser
 
 Current Monthly Parser coverage:
 
@@ -264,498 +320,338 @@ scripts/backfill_v3_financial_holding_current_year.py
 
 ---
 
-# 7. Turso DEV Coverage
+## 6.2 Historical Scripts
 
-## 2880 華南金
-
-```text
-2024-01 ~ 2024-12 ✅
-2025-01 ~ 2025-12 ✅
-2026-01 ~ 2026-08 ✅ existing
-```
-
-Historical script:
+Historical backfill scripts already used include:
 
 ```text
 scripts/backfill_v3_financial_holding_huanan.py
+scripts/backfill_v3_financial_holding_fubon.py
+scripts/backfill_v3_financial_holding_kgi.py
+scripts/backfill_v3_financial_holding_ibf.py
+scripts/backfill_v3_financial_holding_tcf.py
+scripts/backfill_v3_financial_holding_mega.py
+scripts/backfill_v3_financial_holding_taishin.py
+scripts/backfill_v3_financial_holding_esun.py
+scripts/backfill_v3_financial_holding_sinopac.py
+scripts/backfill_v3_financial_holding_ctbc.py
+scripts/backfill_v3_financial_holding_first.py
 ```
 
-Result:
-
-```text
-HUA NAN HISTORICAL BACKFILL OK
-```
-
-2025 YoY against 2024: ✅
-
-2026-01 ~ 2026-08 YoY against 2025: ✅
-
-Important implementation note:
-
-```text
-December earnings
-→ usually announced in January next year
-```
-
-Therefore historical MOPS backfill must separate target data year from announcement query year.
+Do not reopen completed historical scripts unless a confirmed source/data defect is found.
 
 ---
 
-## 2881 富邦金
+## 6.3 Financial Holding UI Export
+
+Exporter:
 
 ```text
-2025-01 ~ 2025-12 ✅
+scripts/export_v3_financial_holdings.py
 ```
 
-Historical script:
+Output:
 
 ```text
-scripts/backfill_v3_financial_holding_fubon.py
+docs/data/latest/financial_holdings.json
 ```
 
-Result:
+Exporter rules:
 
 ```text
-FUBON HISTORICAL BACKFILL OK
+DEV database only
+13 Financial Holding companies only
+Missing values remain null
+Do not convert null to 0
+History keeps latest 24 rows per company
+Financial Holding remains independent Domain JSON
 ```
 
-2026 existing rows:
+JSON top-level structure:
 
 ```text
-2026-03
-2026-05
-2026-06
-2026-07
+generated_at
+history_months
+summary
+holdings
+```
+
+Each Holding contains:
+
+```text
+stock_id
+stock_name
+business_type
+business_type_label
+latest
+coverage
+history
+```
+
+Current summary semantics:
+
+```text
+holding_count
+
+latest_data_month
+
+latest_period_holding_count
+latest_period_monthly_count
+latest_period_ytd_count
+latest_period_eps_count
+latest_period_yoy_count
+
+latest_period_positive_yoy_count
+latest_period_negative_yoy_count
+latest_period_flat_yoy_count
+
+type_distribution
+```
+
+Important:
+
+```text
+latest_period_*
+```
+
+must only count companies whose:
+
+```text
+latest.data_month == summary.latest_data_month
+```
+
+Do not mix older company latest rows into the latest-period summary.
+
+---
+
+# 7. Turso DEV Coverage
+
+Latest audit:
+
+```text
+==========================================================================================
+FINANCIAL HOLDING MONTHLY COVERAGE SUMMARY
+==========================================================================================
+Stock         Rows                 Range   Monthly     YTD     EPS     YoY
+------------------------------------------------------------------------------------------
+2880 華南金        32       2024-01~2026-08        32      32      32      20
+2881 富邦金        17       2025-01~2026-08        17      17      17       5
+2882 國泰金       176       2012-01~2026-08       176     176     176     164
+2883 凱基金        20       2025-01~2026-08        20      20      20       8
+2884 玉山金        11       2025-02~2025-12         7      11      11       0
+2885 元大金       295       2002-02~2026-08       295     295     295     283
+2886 兆豐金        24       2024-01~2025-12        24      24      24      12
+2887 台新新光金      20       2025-01~2026-08        20      20      20       8
+2889 國票金        20       2025-01~2026-08        20      20      20       8
+2890 永豐金        13       2025-01~2026-08        13      13      13       1
+2891 中信金        14       2025-01~2026-05        14      14      14       2
+2892 第一金        13       2025-01~2026-08        13      13      13       1
+5880 合庫金        20       2025-01~2026-08        20      20      20       8
+==========================================================================================
+
+AUDIT OK
+```
+
+---
+
+## 7.1 Current-Year Coverage Notes
+
+Latest domain month currently available:
+
+```text
 2026-08
 ```
 
-These rows now have PrevYTD / YoY.
-
-Known current-year gaps:
+At latest export:
 
 ```text
-2026-01
-2026-02
-2026-04
+Latest Financial Holding companies: 10 / 13
 ```
 
-Important 2025-12 special case:
-
-```text
-2025-12 Monthly = 140.0
-2025-12 YTD     = 120850.0
-2025-12 EPS     = 8.36
-```
-
-Backfill must prioritize single-December profit instead of full-year profit.
-
----
-
-## 2882 國泰金
-
-Current database coverage:
-
-```text
-2012-01 ~ 2026-08
-```
-
-Historical coverage strong: ✅
-
-YoY coverage strong: ✅
-
-No immediate historical backfill priority.
-
----
-
-## 2883 凱基金
-
-```text
-2025-01 ~ 2025-12 ✅
-2026-01 ~ 2026-08 ✅ existing
-```
-
-Historical script:
-
-```text
-scripts/backfill_v3_financial_holding_kgi.py
-```
-
-Result:
-
-```text
-KGI HISTORICAL BACKFILL OK
-```
-
-2026-01 ~ 2026-08 now have PrevYTD / YoY.
-
-Important findings:
-
-```text
-2025 list URL uses category=all
-```
-
-2025 titles often do not contain `2025年`.
-
-Historical discovery must scan both 2025 and 2026 news centers because 2025-12 was announced in 2026-01.
-
-Prefer the Financial Holding summary figures in the official article title. Do not use broad article-body regex first because article bodies also contain subsidiary figures.
-
-2025-09 official fallback:
-
-```text
-Monthly = 4528.0
-YTD     = 19050.0
-EPS     = 1.09
-```
-
----
-
-## 2884 玉山金
-
-Current known DEV coverage:
-
-```text
-2025-07 only
-```
-
-Known characteristic:
-
-```text
-monthly_net_profit = NULL
-```
-
-This NULL is intentional based on current source availability.
-
-Historical coverage remains incomplete.
-
-Priority: High
-
----
-
-## 2885 元大金
-
-Current database coverage:
-
-```text
-2002-02 ~ 2026-08
-```
-
-Historical coverage strong: ✅
-
-YoY coverage strong: ✅
-
-No immediate historical backfill priority.
-
----
-
-## 2886 兆豐金
-
-Current database coverage:
-
-```text
-2024-01 ~ 2025-12
-```
-
-Existing historical backfill:
-
-```text
-scripts/backfill_v3_financial_holding_mega.py
-```
-
-Historical state:
-
-```text
-2024 ✅
-2025 ✅
-```
-
-Known gap:
-
-```text
-2026 current-year data missing
-```
-
-This is not a historical backfill problem.
-
----
-
-## 2887 台新新光金
-
-Current known DEV coverage:
-
-```text
-2026-01 ~ 2026-08 ✅
-```
-
-Historical 2025:
-
-```text
-Not yet backfilled
-```
-
-Next planned historical script:
-
-```text
-scripts/backfill_v3_financial_holding_taishin.py
-```
-
-Recommended next task:
-
-```text
-Backfill 2025-01 ~ 2025-12
-↓
-Validate 12/12
-↓
-Update 2026-01 ~ 2026-08 YoY
-```
-
----
-
-## 2889 國票金
-
-```text
-2025-01 ~ 2025-12 ✅
-2026-01 ~ 2026-08 ✅ existing
-```
-
-Historical script:
-
-```text
-scripts/backfill_v3_financial_holding_ibf.py
-```
-
-Result:
-
-```text
-IBF HISTORICAL BACKFILL OK
-```
-
-2026-01 ~ 2026-08 now have PrevYTD / YoY.
-
-Official source:
-
-```text
-https://www.ibf.com.tw/performance_reports
-```
-
-Only parse the `本公司` section and avoid subsidiary figures from 國際票券、國票證券、國票創投.
-
----
-
-## 2890 永豐金
-
-Current known DEV coverage:
-
-```text
-2026-08 only
-```
-
-Historical coverage incomplete.
-
-Priority: High
-
----
-
-## 2891 中信金
-
-Current known DEV coverage:
-
-```text
-2025-12
-2026-03
-2026-05
-```
-
-Coverage remains sparse.
-
-Current parser uses hardcoded official PDF sources.
-
-Priority: High
-
----
-
-## 2892 第一金
-
-Current known DEV coverage:
-
-```text
-2026-08 only
-```
-
-Current parser source is MoneyDJ, which is secondary.
-
-Historical coverage incomplete.
-
-Priority: High
-
-Prefer an official stable source when available.
-
----
-
-## 5880 合庫金
-
-```text
-2025-01 ~ 2025-12 ✅
-2026-01 ~ 2026-08 ✅ existing
-```
-
-Historical script:
-
-```text
-scripts/backfill_v3_financial_holding_tcf.py
-```
-
-Result:
-
-```text
-TCF HISTORICAL BACKFILL OK
-```
-
-2026-01 ~ 2026-08 now have PrevYTD / YoY.
-
-Historical backfill queries:
-
-```text
-ROC 114 announcements
-+
-ROC 115 announcements
-```
-
-because 2025-12 was announced in 2026-01.
-
-Parser must always use:
-
-```text
-合庫金控(合併)
-```
-
-and must not use subsidiary rows.
-
----
-
-# 8. Historical Backfill Progress
-
-Completed as of 2026-10-06:
-
-```text
-2880 華南金      ✅ 2024 + 2025
-2881 富邦金      ✅ 2025
-2883 凱基金      ✅ 2025
-2889 國票金      ✅ 2025
-5880 合庫金      ✅ 2025
-```
-
-Already historically strong before this round:
-
-```text
-2882 國泰金      ✅ long history
-2885 元大金      ✅ long history
-2886 兆豐金      ✅ 2024 + 2025
-```
-
-Still requiring historical/current completeness work:
+Companies not yet at 2026-08:
 
 ```text
 2884 玉山金
-2887 台新新光金
-2890 永豐金
+Latest = 2025-12
+
+2886 兆豐金
+Latest = 2025-12
+
 2891 中信金
-2892 第一金
+Latest = 2026-05
 ```
 
-Additional current-year gaps:
+Additional known sparse current-year coverage:
 
 ```text
-2881 富邦金: 2026-01 / 2026-02 / 2026-04
-2886 兆豐金: 2026 current-year coverage missing
+2881 富邦金
+2026-01 / 2026-02 / 2026-04 missing
+
+2891 中信金
+2026 currently contains partial months
+```
+
+Do not interpret missing current-year rows as zero earnings.
+
+---
+
+# 8. Historical Backfill Status
+
+Historical Financial Holding backfill phase is complete enough for the first Financial Holding Domain UI.
+
+2025 baseline:
+
+```text
+2880 華南金       ✅
+2881 富邦金       ✅
+2882 國泰金       ✅ historical coverage already strong
+2883 凱基金       ✅
+2884 玉山金       ✅ 2025-02 ~ 2025-12
+2885 元大金       ✅ historical coverage already strong
+2886 兆豐金       ✅
+2887 台新新光金   ✅
+2889 國票金       ✅
+2890 永豐金       ✅
+2891 中信金       ✅
+2892 第一金       ✅
+5880 合庫金       ✅
+```
+
+Important 2884 rule:
+
+```text
+2884 2025-01
+→ intentionally not backfilled / unavailable
+```
+
+Do not claim that a physical `WAITING_DATA` row exists unless one actually exists in DB.
+
+Correct wording:
+
+```text
+2025-01 intentionally not backfilled / unavailable
+```
+
+or:
+
+```text
+維持缺資料 / WAITING_DATA 語意
 ```
 
 ---
 
-# 9. Recommended Next Order
+# 9. Important Financial Holding Data Notes
 
-Next session:
+## 9.1 2884 玉山金
 
-```text
-1. 2887 台新新光金
-   └─ backfill 2025-01 ~ 2025-12
-
-2. 2884 玉山金
-   └─ investigate stable official historical source
-
-3. 2890 永豐金
-   └─ expand beyond single latest official page
-
-4. 2891 中信金
-   └─ replace sparse hardcoded PDF coverage with historical discovery/backfill
-
-5. 2892 第一金
-   └─ investigate official source and reduce dependency on secondary source
-```
-
-After historical baseline is stable:
+2025 historical values:
 
 ```text
-Historical Backfill
-↓
-YoY completeness
-↓
-EPS / ROE
-↓
-Dividend / Yield
-↓
-Main Profit Type
-↓
-Financial Environment
-↓
-UI
+2025-02 Monthly 2724 / YTD 5749 / EPS 0.36
+2025-03 Monthly NULL / YTD 8792 / EPS 0.55
+2025-04 Monthly NULL / YTD 11300 / EPS 0.71
+2025-05 Monthly 2850 / YTD 14152 / EPS 0.88
+2025-06 Monthly NULL / YTD 16753 / EPS 1.05
+2025-07 Monthly NULL / YTD 20210 / EPS 1.25
+2025-08 Monthly 3094 / YTD 23305 / EPS 1.44
+2025-09 Monthly 2897 / YTD 26202 / EPS 1.62
+2025-10 Monthly 3130 / YTD 29333 / EPS 1.81
+2025-11 Monthly 2944 / YTD 32277 / EPS 2.00
+2025-12 Monthly 2010 / YTD 34287 / EPS 2.12
 ```
 
-Do not design Financial Holding scoring before the data foundation is stable.
+Use monthly self-report:
+
+```text
+2025-12 YTD = 34287
+```
+
+Do not replace with later formal annual:
+
+```text
+34342
+```
+
+because the Domain dataset is monthly self-report data.
 
 ---
 
-# 10. Historical Baseline Strategy
+## 9.2 2887 台新新光金
 
-Recommended baseline:
+2025 historical backfill completed.
 
-```text
-2024-01 ~ 2025-12
-```
-
-Reason:
-
-```text
-2025 YoY requires 2024
-2026 YoY requires 2025
-```
-
-Current implementation has prioritized 2025 first for stocks with complete 2026 current-year data because this immediately unlocks 2026 YoY.
-
-Once all 13 companies have comparable 2025 data, continue filling 2024 where sources allow.
+2026 existing rows received previous-year YTD and YoY.
 
 ---
 
-# 11. Data Quality Rules Learned
+## 9.3 2890 永豐金
 
-## 11.1 Announcement Year != Data Year
+2025 historical backfill completed.
+
+Existing:
+
+```text
+2026-08 YTD = 33344
+Previous-year YTD = 18073
+YoY = 84.50%
+```
+
+---
+
+## 9.4 2891 中信金
+
+2025 historical backfill completed.
+
+Known existing 2026 rows include:
+
+```text
+2026-03
+YTD = 23104
+YoY = 16.05%
+
+2026-05
+YTD = 34790
+YoY = 40.99%
+```
+
+Current-year coverage remains sparse.
+
+---
+
+## 9.5 2892 第一金
+
+2025 historical backfill completed.
+
+Existing:
+
+```text
+2026-08 YTD = 23850
+Previous-year YTD = 19655
+YoY = 21.34%
+```
+
+---
+
+# 10. Data Quality Rules Learned
+
+## 10.1 Announcement Year != Data Year
 
 ```text
 December earnings
 → usually announced in January next year
 ```
 
-Historical backfill must support target data year + next announcement year.
-
-Confirmed for:
+Historical backfill must support:
 
 ```text
-2880 華南金
-2883 凱基金
-5880 合庫金
+target data year
++
+next announcement year
 ```
 
-## 11.2 Prefer Holding Company Numbers
+---
+
+## 10.2 Prefer Holding Company Numbers
 
 Financial Holding articles often contain subsidiary figures.
 
@@ -769,7 +665,11 @@ Examples:
 本公司
 ```
 
-## 11.3 YTD Reconciliation
+Do not broadly parse subsidiary figures into holding-company data.
+
+---
+
+## 10.3 YTD Reconciliation
 
 Whenever monthly and cumulative data are both available:
 
@@ -781,177 +681,362 @@ Current Monthly
 Current YTD
 ```
 
-must be validated before database write.
+must be validated before historical database write.
 
 Tolerance should match source precision.
 
-## 11.4 Historical Backfill Must Be Atomic
+---
 
-Preferred workflow:
+## 10.4 December Special Cases
 
-```text
-Collect all target months
-↓
-Validate all target months
-↓
-Validate YTD continuity
-↓
-Only then connect to Turso
-↓
-Upsert
-↓
-Update YoY
-↓
-Verify
-```
-
-If source validation fails:
+Some official sources contain both:
 
 ```text
-Do not write partial historical data
+December single-month profit
 ```
+
+and:
+
+```text
+full-year cumulative profit
+```
+
+Parser/backfill must distinguish these.
+
+Example:
+
+```text
+2881 富邦金
+2025-12 Monthly = 140
+2025-12 YTD     = 120850
+2025-12 EPS     = 8.36
+```
+
+Never use full-year YTD as December Monthly.
 
 ---
 
-# 12. Current Audit
+# 11. Financial Holding UI Status
 
-Existing audit:
-
-```powershell
-.\.venv\Scripts\python.exe .\scripts\audit_v3_financial_holding_monthly.py
-```
-
-Previous result:
+Current exporter completed:
 
 ```text
-AUDIT OK
+scripts/export_v3_financial_holdings.py
 ```
 
-Important:
-
-Current audit validates structure/query/basic formatting. It does not by itself prove complete historical coverage.
-
-Historical completeness must additionally check:
+Current JSON successfully generated:
 
 ```text
-expected months
-actual months
-YTD reconciliation
-YoY availability
+docs/data/latest/financial_holdings.json
+```
+
+Latest verified summary:
+
+```text
+holding_count                     = 13
+latest_data_month                 = 2026-08
+latest_period_holding_count       = 10
+latest_period_monthly_count       = 10
+latest_period_ytd_count           = 10
+latest_period_eps_count           = 10
+latest_period_yoy_count           = 10
+latest_period_positive_yoy_count  = 10
+latest_period_negative_yoy_count  = 0
+latest_period_flat_yoy_count      = 0
+```
+
+Business type distribution:
+
+```text
+BANK       = 7
+INSURANCE  = 2
+SECURITIES = 2
+MIXED      = 2
+```
+
+UI location:
+
+```text
+市場
+↓
+其他市場觀察
+↓
+金控股觀察
+```
+
+Do not add a new bottom navigation item.
+
+Existing bottom navigation remains:
+
+```text
+首頁
+排行
+市場
+我的
+```
+
+Recommended UI flow:
+
+```text
+市場
+↓
+金控股觀察
+↓
+同頁展開 Financial Holding Domain
+↓
+Summary
+↓
+Type Filter
+↓
+13 Financial Holding companies
+↓
+Later: click company → Detail Overlay
+```
+
+V1 should display:
+
+```text
+Company
+Stock ID
+Business Type
+Latest Data Month
+YTD Net Profit
+YTD EPS
+YTD Profit YoY
+```
+
+Missing values:
+
+```text
+NULL → —
+```
+
+Never:
+
+```text
+NULL → 0
+```
+
+If a company's latest month is older than:
+
+```text
+summary.latest_data_month
+```
+
+UI should clearly identify it as older-period data.
+
+---
+
+# 12. GitHub Actions
+
+## 12.1 Daily Incremental DEV
+
+Workflow:
+
+```text
+.github/workflows/daily-incremental-dev.yml
+```
+
+Schedule:
+
+```text
+Taiwan Monday-Friday 20:15
+UTC Monday-Friday 12:15
+```
+
+Current intended sequence:
+
+```text
+Daily Incremental Pipeline
+↓
+V3 Sector Sync
+↓
+V3 Sector Snapshot
+↓
+V3 ETF Holdings Sync
+↓
+V3 Financial Holding Monthly Sync
+```
+
+Financial Holding step:
+
+```text
+python scripts/sync_v3_financial_holding_monthly.py
+```
+
+Status:
+
+```text
+Workflow definition updated locally
+GitHub Actions execution pending verification
+```
+
+Do not mark automation fully verified until GitHub Actions passes.
+
+---
+
+## 12.2 V3 UI DEV
+
+Workflow:
+
+```text
+.github/workflows/publish-v2-ui-dev.yml
+```
+
+Schedule:
+
+```text
+Taiwan every day 21:20
+UTC every day 13:20
+```
+
+Current intended sequence:
+
+```text
+Export V2 Base Snapshot
+↓
+Build V2 Score
+↓
+Export V3 Sector
+↓
+Export V3 ETF
+↓
+Export V3 Financial Holding
+↓
+Build V3 UI Snapshot
+↓
+Validate generated JSON
+↓
+Upload artifact
+↓
+GitHub Pages
+```
+
+Financial Holding export:
+
+```text
+python scripts/export_v3_financial_holdings.py
+```
+
+Required output validation:
+
+```text
+docs/data/latest/financial_holdings.json
+```
+
+Status:
+
+```text
+Workflow definition updated locally
+GitHub Actions execution pending verification
 ```
 
 ---
 
 # 13. Working Commands
 
+Financial Holding audit:
+
 ```powershell
 .\.venv\Scripts\python.exe .\scripts\audit_v3_financial_holding_monthly.py
+```
 
-.\.venv\Scripts\python.exe .\scripts\backfill_v3_financial_holding_huanan.py
+Financial Holding incremental sync:
 
-.\.venv\Scripts\python.exe .\scripts\backfill_v3_financial_holding_fubon.py
+```powershell
+.\.venv\Scripts\python.exe .\scripts\sync_v3_financial_holding_monthly.py
+```
 
-.\.venv\Scripts\python.exe .\scripts\backfill_v3_financial_holding_kgi.py
+Financial Holding UI export:
 
-.\.venv\Scripts\python.exe .\scripts\backfill_v3_financial_holding_ibf.py
+```powershell
+.\.venv\Scripts\python.exe .\scripts\export_v3_financial_holdings.py
+```
 
-.\.venv\Scripts\python.exe .\scripts\backfill_v3_financial_holding_tcf.py
+Expected exporter end:
 
-.\.venv\Scripts\python.exe .\scripts\backfill_v3_financial_holding_mega.py
+```text
+[PASS] Exported:
+D:\002.Programs\002.Others\Python\StockWaveScanner\docs\data\latest\financial_holdings.json
+
+FINANCIAL HOLDING EXPORT OK
 ```
 
 ---
 
-# 14. Immediate Next Task
+# 14. Current Immediate Task
 
-Create:
-
-```text
-scripts/backfill_v3_financial_holding_taishin.py
-```
-
-Goal:
+Current task:
 
 ```text
-2887 台新新光金
-2025-01 ~ 2025-12
+Financial Holding automation verification
 ```
 
-Requirements:
+Sequence:
 
 ```text
-Existing Parser unchanged
-DEV only
-Official source preferred
-12/12 required
-YTD reconciliation required
-Do not write partial rows
-After write, update all YoY
-Verify 2026-01 ~ 2026-08 PrevYTD / YoY
+1. Commit Financial Holding exporter
+2. Commit workflow updates
+3. Push main
+4. Manually run Daily Incremental DEV
+5. Verify Financial Holding Monthly Sync
+6. Manually run V3 UI DEV
+7. Verify financial_holdings.json export
+8. Verify GitHub Pages artifact
+9. Then continue Financial Holding UI implementation
 ```
 
-After success:
+If GitHub Actions returns ERROR:
 
 ```text
-2887 2025 ✅
-2887 2026 YoY ✅
+STOP
+↓
+Handle only first ERROR
+↓
+Fix
+↓
+Rerun
 ```
 
-Then continue to:
-
-```text
-2884 玉山金
-```
+Do not continue UI changes until the automation path is confirmed.
 
 ---
 
-# 15. Session Summary - 2026-10-06
+# 15. Session Summary - 2026-10-07
 
-Completed today:
-
-```text
-2880 華南金
-- Historical backfill 2024 + 2025
-- 2025 YoY generated
-- 2026 YoY generated
-- MOPS cross-year announcement handling confirmed
-
-2881 富邦金
-- Historical backfill 2025
-- Fixed December full-year vs single-month parsing
-- Existing 2026 rows received YoY
-
-2883 凱基金
-- Historical backfill 2025
-- Fixed 2025 news-list discovery
-- Fixed Chinese month parsing
-- Prevented subsidiary-data contamination
-- Added official 2025-09 fallback
-- 2026-01 ~ 08 YoY generated
-
-2889 國票金
-- Historical backfill 2025
-- 12/12 complete
-- YTD reconciliation passed
-- 2026-01 ~ 08 YoY generated
-
-5880 合庫金
-- Historical backfill 2025
-- Cross-year MOPS handling confirmed
-- 12/12 complete
-- 2026-01 ~ 08 YoY generated
-```
-
-Current Historical Backfill completion count:
+Completed:
 
 ```text
-5 companies completed in this round
-+
-3 companies already historically strong
+Financial Holding historical baseline
+- Historical backfill phase completed
+- 13-company audit passed
+- Missing data remains NULL
+- YoY generated where previous-year YTD exists
+
+Financial Holding Export
+- Created scripts/export_v3_financial_holdings.py
+- DEV-only protection
+- 13 companies exported
+- Latest 24 history rows per company
+- Independent financial_holdings.json
+- Correct latest-period summary semantics
+- Missing values remain null
+
+Financial Holding Automation
+- Added sync_v3_financial_holding_monthly.py to Daily Incremental DEV
+- Added export_v3_financial_holdings.py to V3 UI DEV
+- Added financial_holdings.json validation
+- Pending GitHub Actions runtime verification
 ```
 
 Next:
 
 ```text
-2887 台新新光金
+Git Sync
+↓
+GitHub Actions Daily Incremental DEV test
+↓
+GitHub Actions V3 UI DEV test
+↓
+Financial Holding UI
 ```

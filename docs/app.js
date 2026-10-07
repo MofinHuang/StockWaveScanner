@@ -3,6 +3,7 @@
 const DATA_FILE = "./data/latest/v3_ui.json";
 const SECTOR_FILE = "./data/latest/sectors.json";
 const ANALYST_FILE = "./data/latest/analysts.json";
+const FINANCIAL_HOLDING_FILE = "./data/latest/financial_holdings.json";
 const WATCHLIST_KEY = "stockwavescanner.v3.watchlist";
 
 const state = {
@@ -25,6 +26,10 @@ const state = {
     etfPeriod: "1d",
     etfSelectedId: "ALL",
     etfChangeType: "CHANGED",
+
+    financialHoldingData: null,
+    financialHoldings: [],
+    financialHoldingType: "ALL",
 
     currentPage: "home",
 };
@@ -87,6 +92,20 @@ async function loadData() {
             );
         }
 
+        let financialHoldingPayload = null;
+
+        try {
+            financialHoldingPayload = await loadJson(
+                FINANCIAL_HOLDING_FILE
+            );
+        }
+        catch (error) {
+            console.warn(
+                "Financial holding data unavailable",
+                error
+            );
+        }
+
         state.ui = payload;
 
         state.market =
@@ -137,6 +156,13 @@ async function loadData() {
 
         state.etfs =
             payload.etf?.etfs
+            || [];
+
+        state.financialHoldingData =
+            financialHoldingPayload;
+
+        state.financialHoldings =
+            financialHoldingPayload?.holdings
             || [];
 
         document
@@ -1108,18 +1134,47 @@ function renderMarket() {
 
             </button>
 
-            ${featureCardHtml(
-                "$",
-                "金控股觀察",
-                "使用金融業專屬 KPI，觀察獲利、股息、法人與金融環境。",
-                "金融股專屬觀察",
-                "待建置"
-            )}
+            <button
+                id="openFinancialHoldings"
+                class="feature-card feature-button"
+            >
+
+                <div class="feature-icon">
+                    $
+                </div>
+
+                <div class="feature-title">
+                    金控股觀察
+                </div>
+
+                <div class="feature-description">
+                    觀察金控月自結獲利、累計獲利、
+                    EPS 與年增率變化。
+                </div>
+
+                <div class="feature-meta">
+                    13 家金控・月自結資料
+                </div>
+
+                <div class="feature-status feature-status-ready">
+                    已啟用
+                </div>
+
+                <div class="feature-link">
+                    查看金控股觀察 →
+                </div>
+
+            </button>
 
         </div>
 
         <div
             id="etfDomainPanel"
+            style="display:none;"
+        ></div>
+
+        <div
+            id="financialHoldingDomainPanel"
             style="display:none;"
         ></div>
     `;
@@ -1209,6 +1264,665 @@ function renderMarket() {
                 });
             }
         );
+
+    document
+        .getElementById(
+            "openFinancialHoldings"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
+
+                const panel =
+                    document.getElementById(
+                        "financialHoldingDomainPanel"
+                    );
+
+                if (!panel) {
+                    return;
+                }
+
+                panel.style.display =
+                    "block";
+
+                renderFinancialHoldingDomain();
+
+                panel.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+            }
+        );
+}
+
+// ============================================================
+// FINANCIAL HOLDING
+// ============================================================
+
+function renderFinancialHoldingDomain() {
+
+    const container =
+        document.getElementById(
+            "financialHoldingDomainPanel"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const data =
+        state.financialHoldingData;
+
+    const holdings =
+        state.financialHoldings
+        || [];
+
+    if (
+        !data
+        ||
+        !holdings.length
+    ) {
+
+        container.innerHTML = `
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    $
+                </div>
+
+                <div>
+                    金控股資料尚未發布
+                </div>
+
+                <div class="metric-sub">
+                    等待 financial_holdings.json 產生後即可顯示。
+                </div>
+
+            </div>
+        `;
+
+        return;
+    }
+
+    const summary =
+        data.summary
+        || {};
+
+    container.innerHTML = `
+
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title no-margin">
+                    金控股觀察
+                </div>
+
+                <div class="section-subtitle">
+                    月自結獲利、累計獲利、
+                    EPS 與累計獲利年增率
+                </div>
+
+            </div>
+
+            <div class="section-count">
+                ${formatInteger(
+                    summary.holding_count
+                    ?? holdings.length
+                )}
+                家
+            </div>
+
+        </div>
+
+
+        <div class="sector-summary-grid">
+
+            ${sectorSummaryMetric(
+                "金控家數",
+                summary.holding_count
+                ?? holdings.length,
+                " 家"
+            )}
+
+            ${sectorSummaryMetric(
+                "最新資料",
+                summary.latest_data_month
+                || "--",
+                ""
+            )}
+
+            ${sectorSummaryMetric(
+                "本期已有資料",
+                `${
+                    summary.latest_period_holding_count
+                    ?? 0
+                } / ${
+                    summary.holding_count
+                    ?? holdings.length
+                }`,
+                " 家"
+            )}
+
+            ${sectorSummaryMetric(
+                "本期獲利年增",
+                summary.latest_period_positive_yoy_count
+                ?? 0,
+                " 家"
+            )}
+
+        </div>
+
+
+        <div
+            id="financialHoldingTypeFilters"
+            class="filter-bar financial-holding-filter-bar"
+        >
+
+            ${financialHoldingTypeButton(
+                "ALL",
+                "全部",
+                state.financialHoldingType === "ALL"
+            )}
+
+            ${financialHoldingTypeButton(
+                "BANK",
+                "銀行型",
+                state.financialHoldingType === "BANK"
+            )}
+
+            ${financialHoldingTypeButton(
+                "INSURANCE",
+                "壽險型",
+                state.financialHoldingType === "INSURANCE"
+            )}
+
+            ${financialHoldingTypeButton(
+                "SECURITIES",
+                "證券型",
+                state.financialHoldingType === "SECURITIES"
+            )}
+
+            ${financialHoldingTypeButton(
+                "MIXED",
+                "綜合型",
+                state.financialHoldingType === "MIXED"
+            )}
+
+        </div>
+
+
+        <div
+            id="financialHoldingList"
+            class="stock-list"
+        ></div>
+
+
+        <div class="analyst-disclaimer">
+
+            金控股觀察使用各公司公開之月自結資料。
+            各金控發布時間不同，因此最新資料月份可能不一致。
+            無可靠資料時維持未提供，不以 0 代替。
+
+        </div>
+    `;
+
+    bindFinancialHoldingFilters();
+
+    renderFinancialHoldingList();
+}
+
+
+function financialHoldingTypeButton(
+    value,
+    label,
+    active
+) {
+
+    return `
+
+        <button
+            class="
+                filter-button
+                ${active ? "active" : ""}
+            "
+            data-financial-holding-type="${escapeHtml(
+                value
+            )}"
+        >
+            ${escapeHtml(
+                label
+            )}
+        </button>
+    `;
+}
+
+
+function bindFinancialHoldingFilters() {
+
+    document
+        .querySelectorAll(
+            "#financialHoldingTypeFilters .filter-button"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        state.financialHoldingType =
+                            button.dataset
+                                .financialHoldingType
+                            || "ALL";
+
+                        renderFinancialHoldingDomain();
+                    }
+                );
+            }
+        );
+}
+
+
+function renderFinancialHoldingList() {
+
+    const container =
+        document.getElementById(
+            "financialHoldingList"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const selectedType =
+        state.financialHoldingType
+        || "ALL";
+
+    let holdings = [
+        ...(
+            state.financialHoldings
+            || []
+        )
+    ];
+
+    if (
+        selectedType
+        !== "ALL"
+    ) {
+
+        holdings =
+            holdings.filter(
+                holding =>
+                    holding.business_type
+                    === selectedType
+            );
+    }
+
+    holdings.sort(
+        (a, b) => {
+
+            const aLatest =
+                a.latest
+                || {};
+
+            const bLatest =
+                b.latest
+                || {};
+
+            const aMonth =
+                String(
+                    aLatest.data_month
+                    || ""
+                );
+
+            const bMonth =
+                String(
+                    bLatest.data_month
+                    || ""
+                );
+
+            if (
+                aMonth
+                !== bMonth
+            ) {
+
+                return (
+                    bMonth.localeCompare(
+                        aMonth
+                    )
+                );
+            }
+
+            const aYoy =
+                aLatest.ytd_profit_yoy_pct;
+
+            const bYoy =
+                bLatest.ytd_profit_yoy_pct;
+
+            if (
+                aYoy === null
+                ||
+                aYoy === undefined
+            ) {
+
+                return 1;
+            }
+
+            if (
+                bYoy === null
+                ||
+                bYoy === undefined
+            ) {
+
+                return -1;
+            }
+
+            return (
+                Number(
+                    bYoy
+                )
+                -
+                Number(
+                    aYoy
+                )
+            );
+        }
+    );
+
+    container.innerHTML =
+        holdings.length
+
+        ?
+
+        holdings
+            .map(
+                holding =>
+                    financialHoldingRowHtml(
+                        holding
+                    )
+            )
+            .join("")
+
+        :
+
+        `
+
+        <div class="empty-state">
+            此類型目前沒有金控資料
+        </div>
+        `;
+}
+
+
+function financialHoldingRowHtml(
+    holding
+) {
+
+    const latest =
+        holding.latest
+        || {};
+
+    const latestMonth =
+        latest.data_month
+        || "--";
+
+    const ytdProfit =
+        latest.ytd_net_profit;
+
+    const eps =
+        latest.ytd_eps;
+
+    const yoy =
+        latest.ytd_profit_yoy_pct;
+
+    const globalLatestMonth =
+        state.financialHoldingData
+            ?.summary
+            ?.latest_data_month
+        || null;
+
+    const isLatestPeriod =
+        latestMonth
+        === globalLatestMonth;
+
+    return `
+
+        <div class="stock-row">
+
+            <div class="stock-main">
+
+                <div class="stock-title">
+
+                    <span>
+                        ${escapeHtml(
+                            holding.stock_name
+                            || "--"
+                        )}
+                    </span>
+
+                    <span class="stock-code">
+                        ${escapeHtml(
+                            holding.stock_id
+                            || "--"
+                        )}
+                    </span>
+
+                    <span class="badge badge-blue">
+                        ${escapeHtml(
+                            holding.business_type_label
+                            || holding.business_type
+                            || "--"
+                        )}
+                    </span>
+
+                    ${
+                        isLatestPeriod
+
+                        ?
+
+                        ""
+
+                        :
+
+                        `
+                        <span class="badge badge-wait">
+                            資料非最新期
+                        </span>
+                        `
+                    }
+
+                </div>
+
+
+                <div class="score-inline">
+
+                    <span>
+                        累計獲利
+                        <strong>
+                            ${formatFinancialHoldingProfit(
+                                ytdProfit
+                            )}
+                        </strong>
+                    </span>
+
+                    <span>
+                        EPS
+                        <strong>
+                            ${formatFinancialHoldingValue(
+                                eps,
+                                2
+                            )}
+                        </strong>
+                    </span>
+
+                    <span>
+                        資料月份
+                        <strong>
+                            ${escapeHtml(
+                                latestMonth
+                            )}
+                        </strong>
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="stock-price">
+
+                <div
+                    class="
+                        stock-price-main
+                        ${changeClass(
+                            yoy
+                        )}
+                    "
+                >
+                    ${formatFinancialHoldingYoy(
+                        yoy
+                    )}
+                </div>
+
+                <div class="metric-sub">
+                    累計獲利 YoY
+                </div>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+function formatFinancialHoldingProfit(
+    value
+) {
+
+    if (
+        value === null
+        ||
+        value === undefined
+    ) {
+        return "—";
+    }
+
+    const number =
+        Number(
+            value
+        );
+
+    if (
+        Number.isNaN(
+            number
+        )
+    ) {
+        return "—";
+    }
+
+    //
+    // financial_holding_monthly
+    // 金額欄位目前以百萬元儲存。
+    // UI 轉為億元顯示。
+    //
+    return (
+        `${(
+            number / 100
+        ).toLocaleString(
+            "zh-TW",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }
+        )} 億`
+    );
+}
+
+
+function formatFinancialHoldingValue(
+    value,
+    digits = 2
+) {
+
+    if (
+        value === null
+        ||
+        value === undefined
+    ) {
+        return "—";
+    }
+
+    const number =
+        Number(
+            value
+        );
+
+    if (
+        Number.isNaN(
+            number
+        )
+    ) {
+        return "—";
+    }
+
+    return number.toLocaleString(
+        "zh-TW",
+        {
+            minimumFractionDigits:
+                digits,
+
+            maximumFractionDigits:
+                digits,
+        }
+    );
+}
+
+
+function formatFinancialHoldingYoy(
+    value
+) {
+
+    if (
+        value === null
+        ||
+        value === undefined
+    ) {
+        return "—";
+    }
+
+    const number =
+        Number(
+            value
+        );
+
+    if (
+        Number.isNaN(
+            number
+        )
+    ) {
+        return "—";
+    }
+
+    const prefix =
+        number > 0
+        ? "+"
+        : "";
+
+    return (
+        `${prefix}`
+        +
+        number.toLocaleString(
+            "zh-TW",
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }
+        )
+        +
+        "%"
+    );
 }
 
 // ============================================================
